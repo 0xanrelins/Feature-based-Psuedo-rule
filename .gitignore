@@ -1,0 +1,25 @@
+# Secrets
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Node
+**/node_modules/
+**/.next/
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.pyc
+
+# Large local data / generated artifacts
+**/data/15m_30d_snapshots/
+**/data/*.json
+!/TEXT TO QUERY/data/.gitkeep
+
+# Local backups / archives
+*.zip
+.repo-metadata-backup/
+
+# OS/editor
+.DS_Store

@@ -1,0 +1,395 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PolyDataMine API",
+    "description": "PolyDataMine provides comprehensive, real-time access to prediction market data and historical snapshots. Build trading strategies, perform backtesting, and analyze market movements with our powerful REST API.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "PolyDataMine Support",
+      "url": "https://polybacktest.com",
+      "email": "support@polybacktest.com"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://polybacktest.com/terms"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.polybacktest.com",
+      "description": "Production API"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health Check",
+        "description": "Health check endpoint to verify service availability. No authentication required.",
+        "operationId": "health_check_health_get",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets": {
+      "get": {
+        "tags": ["v1 - Markets"],
+        "summary": "List Markets",
+        "description": "List all markets with pagination. Returns markets sorted by start_time descending (newest first).",
+        "operationId": "list_markets_v1_markets_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "maximum": 100, "minimum": 1, "default": 50 },
+            "description": "Number of results to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "default": 0 },
+            "description": "Pagination offset"
+          },
+          {
+            "name": "market_type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["5m", "15m", "1hr", "4hr", "24hr"] },
+            "description": "Filter by market type (5m, 15m, 1hr, 4hr, 24hr)"
+          },
+          {
+            "name": "resolved",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean" },
+            "description": "Filter by resolution status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MarketsListResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid API key" },
+          "422": { "description": "Validation Error" }
+        }
+      }
+    },
+    "/v1/markets/{market_id}": {
+      "get": {
+        "tags": ["v1 - Markets"],
+        "summary": "Get Market By Id",
+        "description": "Get a single market by its ID.",
+        "operationId": "get_market_by_id_v1_markets__market_id__get",
+        "parameters": [
+          {
+            "name": "market_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Market ID",
+            "example": "1051520"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MarketResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid API key" },
+          "404": { "description": "Market not found" },
+          "422": { "description": "Validation Error" }
+        }
+      }
+    },
+    "/v1/markets/by-slug/{slug}": {
+      "get": {
+        "tags": ["v1 - Markets"],
+        "summary": "Get Market By Slug",
+        "description": "Get a single market by its slug. Slugs are human-readable identifiers for markets.",
+        "operationId": "get_market_by_slug_v1_markets_by_slug__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Market slug",
+            "example": "btc-updown-24h-2026-01-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MarketResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid API key" },
+          "404": { "description": "Market not found" },
+          "422": { "description": "Validation Error" }
+        }
+      }
+    },
+    "/v1/markets/{market_id}/snapshots": {
+      "get": {
+        "tags": ["v1 - Snapshots"],
+        "summary": "Get Market Snapshots",
+        "description": "Get snapshots for a market with pagination. Returns snapshots sorted by time ascending (oldest first). Maximum limit is 1000 snapshots per request.",
+        "operationId": "get_market_snapshots_v1_markets__market_id__snapshots_get",
+        "parameters": [
+          {
+            "name": "market_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Market ID",
+            "example": "1051520"
+          },
+          {
+            "name": "include_orderbook",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": false },
+            "description": "Include full orderbook JSON in each snapshot"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "maximum": 1000, "minimum": 1, "default": 100 },
+            "description": "Number of results to return (max 1000)"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "default": 0 },
+            "description": "Pagination offset"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Filter snapshots after this time (ISO8601)"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Filter snapshots before this time (ISO8601)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SnapshotsListResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid API key" },
+          "404": { "description": "Market not found" },
+          "422": { "description": "Validation Error" }
+        }
+      }
+    },
+    "/v1/markets/{market_id}/snapshot-at/{timestamp}": {
+      "get": {
+        "tags": ["v1 - Snapshots"],
+        "summary": "Get Snapshot At Timestamp",
+        "description": "Get the closest snapshot to a specific timestamp. Returns the snapshot closest to the given timestamp, but only if it's within ±2 seconds.",
+        "operationId": "get_snapshot_at_timestamp_v1_markets__market_id__snapshot_at__timestamp__get",
+        "parameters": [
+          {
+            "name": "market_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Market ID",
+            "example": "1051520"
+          },
+          {
+            "name": "timestamp",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Target timestamp (ISO8601)",
+            "example": "2026-01-01T12:30:00Z"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SnapshotAtTimestampResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid API key" },
+          "404": { "description": "No snapshot found within ±2 seconds of timestamp" },
+          "422": { "description": "Validation Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authentication."
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "timestamp"],
+        "properties": {
+          "status": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "MarketResponse": {
+        "type": "object",
+        "required": ["market_id", "event_id", "slug", "market_type", "start_time", "end_time"],
+        "properties": {
+          "market_id": { "type": "string" },
+          "event_id": { "type": "string" },
+          "slug": { "type": "string" },
+          "market_type": { "type": "string" },
+          "start_time": { "type": "string", "format": "date-time" },
+          "end_time": { "type": "string", "format": "date-time" },
+          "btc_price_start": { "type": "number" },
+          "condition_id": { "type": "string" },
+          "clob_token_up": { "type": "string" },
+          "clob_token_down": { "type": "string" },
+          "winner": { "type": "string" },
+          "final_volume": { "type": "number" },
+          "final_liquidity": { "type": "number" },
+          "btc_price_end": { "type": "number" },
+          "resolved_at": { "type": "string", "format": "date-time" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "MarketsListResponse": {
+        "type": "object",
+        "required": ["markets", "total", "limit", "offset"],
+        "properties": {
+          "markets": { "type": "array", "items": { "type": "object" } },
+          "total": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" }
+        }
+      },
+      "SnapshotResponse": {
+        "type": "object",
+        "required": ["id", "time", "market_id"],
+        "properties": {
+          "id": { "type": "integer", "description": "Unique snapshot identifier" },
+          "time": { "type": "string", "format": "date-time", "description": "Timestamp (ISO8601)" },
+          "market_id": { "type": "string" },
+          "btc_price": { "type": "number", "description": "Bitcoin price at snapshot time (USD)" },
+          "price_up": { "type": "number", "description": "Best price for UP token (0-1 range)" },
+          "price_down": { "type": "number", "description": "Best price for DOWN token (0-1 range)" },
+          "orderbook_up": { "$ref": "#/components/schemas/OrderBookResponse" },
+          "orderbook_down": { "$ref": "#/components/schemas/OrderBookResponse" }
+        }
+      },
+      "SnapshotsListResponse": {
+        "type": "object",
+        "required": ["market", "snapshots", "total", "limit", "offset"],
+        "properties": {
+          "market": { "$ref": "#/components/schemas/MarketResponse" },
+          "snapshots": { "type": "array", "items": { "$ref": "#/components/schemas/SnapshotResponse" } },
+          "total": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" }
+        }
+      },
+      "SnapshotAtTimestampResponse": {
+        "type": "object",
+        "required": ["market", "snapshots"],
+        "properties": {
+          "market": { "$ref": "#/components/schemas/MarketResponse" },
+          "snapshots": { "type": "array", "items": { "$ref": "#/components/schemas/SnapshotResponse" } }
+        }
+      },
+      "OrderBookResponse": {
+        "type": "object",
+        "required": ["bids", "asks"],
+        "properties": {
+          "bids": { "type": "array", "items": { "$ref": "#/components/schemas/OrderBookEntry" } },
+          "asks": { "type": "array", "items": { "$ref": "#/components/schemas/OrderBookEntry" } }
+        }
+      },
+      "OrderBookEntry": {
+        "type": "object",
+        "required": ["price", "size"],
+        "properties": {
+          "price": { "type": "number", "description": "Order price (0-1 range)" },
+          "size": { "type": "number", "description": "Order size in tokens" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["detail"],
+        "properties": {
+          "detail": { "type": "string", "description": "Error message" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": { "type": "array", "items": { "type": "string" } },
+          "msg": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "HTTPValidationError": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "array", "items": { "$ref": "#/components/schemas/ValidationError" } }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Health", "description": "Health check endpoints. No authentication required." },
+    { "name": "v1 - Markets", "description": "Access prediction market data. Requires API key." },
+    { "name": "v1 - Snapshots", "description": "Historical market snapshots for backtesting. Requires API key." }
+  ]
+}
