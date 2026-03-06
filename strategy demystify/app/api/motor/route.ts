@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 
 const PYTHON_BIN = process.env.MOTOR_PYTHON_BIN || "python3";
-const DEFAULT_TEXT_TO_QUERY_PATH = process.env.TEXT_TO_QUERY_PATH || "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY";
+const DEFAULT_TEXT_TO_QUERY_PATH = process.env.TEXT_TO_QUERY_PATH || "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY";
 const MAIN_MODULE = "src.main";
 
 function loadTextToQueryEnvVars(textToQueryPath: string): Record<string, string> {

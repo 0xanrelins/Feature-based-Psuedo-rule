@@ -104,8 +104,8 @@ python scripts/sync_15m_local_cache.py
 ```
 
 What it does:
-- Maintains `data/15m-btc-markets-history.json` (growing historical archive)
-- Downloads only missing/corrupted snapshot files in `data/15m_30d_snapshots/`
+- Maintains `data/market_all.json` (growing historical archive)
+- Downloads only missing/corrupted snapshot files in `data/market_snapshot/`
 - Keeps existing valid snapshot files (no re-download)
 
 ## Requirements

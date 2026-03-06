@@ -22,7 +22,7 @@
 - Token belirtilmedi → default UP (price_up <= 0.06).
 
 ## Veri kaynağı
-- Local cache: `data/15m_30d_snapshots/`
+- Local cache: `data/market_snapshot/`
 - Resolved market listesi: API (list_markets)
 - **Sonuçlar için:** Son 7 günle çalıştırıldı (671 market, hepsi diskte; 30 gün 2847 market + eksik cache yüzünden uzun sürüyordu).
 

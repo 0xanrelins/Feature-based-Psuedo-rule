@@ -2,7 +2,7 @@
 """
 Re-fetch snapshot files that are corrupted or empty.
 Usage: python scripts/refetch_bad_snapshots.py
-Detects bad files in data/15m_30d_snapshots/, re-downloads from API, overwrites.
+Detects bad files in data/market_snapshot/, re-downloads from API, overwrites.
 """
 import json
 import os
@@ -67,7 +67,7 @@ def fetch_page(client, market_id, offset):
 
 def main():
     data_dir = os.path.join(_project_root, "data")
-    cache_dir = os.path.join(data_dir, "15m_30d_snapshots")
+    cache_dir = os.path.join(data_dir, "market_snapshot")
     bad_ids = []
     for name in os.listdir(cache_dir):
         if not name.endswith(".json"):

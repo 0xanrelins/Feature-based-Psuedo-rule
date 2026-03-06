@@ -4,10 +4,10 @@ import path from "path";
 import fs from "fs";
 
 const PYTHON_BIN = process.env.MOTOR_PYTHON_BIN || "python3";
-const DEFAULT_TEXT_TO_QUERY_PATH = process.env.TEXT_TO_QUERY_PATH || "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY";
+const DEFAULT_TEXT_TO_QUERY_PATH = process.env.TEXT_TO_QUERY_PATH || "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY";
 const SCRIPT_RELATIVE_PATH = "scripts/sync_15m_local_cache.py";
-const MARKET_HISTORY_RELATIVE_PATH = "data/15m-btc-markets-history.json";
-const SNAPSHOT_DIR_RELATIVE_PATH = "data/15m_30d_snapshots";
+const MARKET_HISTORY_RELATIVE_PATH = "data/market_all.json";
+const SNAPSHOT_DIR_RELATIVE_PATH = "data/market_snapshot";
 
 function resolveTextToQueryApiKey(textToQueryPath: string): string | undefined {
   const envPath = path.resolve(textToQueryPath, ".env");

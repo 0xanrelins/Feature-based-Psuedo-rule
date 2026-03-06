@@ -18,7 +18,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "..", "data")
     os.makedirs(data_dir, exist_ok=True)
-    out_path = os.path.join(data_dir, "15m-btc-markets-last30days.json")
+    out_path = os.path.join(data_dir, "market_name.json")
 
     now = datetime.now(timezone.utc)
     min_start = now - timedelta(days=30)

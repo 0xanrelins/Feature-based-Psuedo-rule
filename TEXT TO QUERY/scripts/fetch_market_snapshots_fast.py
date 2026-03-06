@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Fetch ALL snapshots for one market in the shortest time allowed by rate limits.
-- Picks a random market from data/15m-btc-markets-last30days.json (or use --market-id).
+- Picks a random market from data/market_name.json (or use --market-id).
 - Paginates with limit=1000 per request; paces at 100 req/sec (burst limit) to minimize time.
 - Saves to data/snapshots-{market_id}.json
 """
@@ -28,7 +28,7 @@ def main():
     args = parser.parse_args()
 
     data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
-    list_path = os.path.join(data_dir, "15m-btc-markets-last30days.json")
+    list_path = os.path.join(data_dir, "market_name.json")
 
     if args.market_id:
         market_id = args.market_id

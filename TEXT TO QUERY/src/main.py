@@ -120,7 +120,7 @@ def run_snapshot_lookup(client: PolyBackTestClient, query: ParsedQuery) -> None:
 def _snapshot_cache_dir(market_type: str) -> str | None:
     """Return path to local snapshot cache dir for this market_type, or None if no cache."""
     if market_type == "15m":
-        return os.path.join(_PROJECT_ROOT, "data", "15m_30d_snapshots")
+        return os.path.join(_PROJECT_ROOT, "data", "market_snapshot")
     return None
 
 
@@ -144,7 +144,7 @@ def _load_markets_from_cache(market_type: str, start_ts: datetime, end_ts: datet
     """Load markets from local history cache (15m only)."""
     if market_type != "15m":
         return []
-    history_path = os.path.join(_PROJECT_ROOT, "data", "15m-btc-markets-history.json")
+    history_path = os.path.join(_PROJECT_ROOT, "data", "market_all.json")
     path = history_path
     if not os.path.isfile(path):
         return []
@@ -183,7 +183,7 @@ def _get_local_market_coverage(market_type: str) -> tuple[datetime | None, datet
     if market_type != "15m":
         return None, None
 
-    history_path = os.path.join(_PROJECT_ROOT, "data", "15m-btc-markets-history.json")
+    history_path = os.path.join(_PROJECT_ROOT, "data", "market_all.json")
     path = history_path
     if not os.path.isfile(path):
         return None, None

@@ -9,8 +9,9 @@ Goals:
 - Keep a growing market history archive over time.
 
 Outputs:
-- data/15m-btc-markets-history.json       (append/merge history archive)
-- data/15m_30d_snapshots/{market_id}.json (snapshot cache, incremental)
+- data/market_name.json                   (current sync window market list)
+- data/market_all.json                    (append/merge history archive)
+- data/market_snapshot/{market_id}.json   (snapshot cache, incremental)
 """
 
 import json
@@ -46,8 +47,9 @@ MAX_RETRIES = 5
 RETRY_BACKOFF_SEC = 60
 
 DATA_DIR = os.path.join(_project_root, "data")
-SNAP_DIR = os.path.join(DATA_DIR, "15m_30d_snapshots")
-MARKETS_HISTORY_PATH = os.path.join(DATA_DIR, "15m-btc-markets-history.json")
+SNAP_DIR = os.path.join(DATA_DIR, "market_snapshot")
+MARKETS_WINDOW_PATH = os.path.join(DATA_DIR, "market_name.json")
+MARKETS_HISTORY_PATH = os.path.join(DATA_DIR, "market_all.json")
 
 
 def _safe_read_json(path: str) -> dict[str, Any]:
@@ -289,6 +291,18 @@ def main() -> None:
 
     latest_30d_markets = _fetch_last_30d_markets(now)
     print(f"Markets fetched (last {DAYS_WINDOW}d): {len(latest_30d_markets)}")
+
+    window_payload = {
+        "metadata": {
+            "query": f"15m BTC market list, last {DAYS_WINDOW} days",
+            "fetched_at": now.isoformat(),
+            "market_type": "15m",
+            "date_range_days": DAYS_WINDOW,
+            "total_markets": len(latest_30d_markets),
+        },
+        "markets": latest_30d_markets,
+    }
+    _write_json(MARKETS_WINDOW_PATH, window_payload)
 
     existing_history = _safe_read_json(MARKETS_HISTORY_PATH).get("markets", [])
     merged_history = _merge_market_history(existing_history, latest_30d_markets)

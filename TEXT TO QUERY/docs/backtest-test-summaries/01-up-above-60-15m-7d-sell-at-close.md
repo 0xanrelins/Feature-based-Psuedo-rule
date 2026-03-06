@@ -16,7 +16,7 @@
 | sell_when | market_end |
 
 ## Veri kaynağı
-- Local cache: `data/15m_30d_snapshots/` (disk)
+- Local cache: `data/market_snapshot/` (disk)
 - Resolved market listesi: API (list_markets)
 
 ## Sonuçlar

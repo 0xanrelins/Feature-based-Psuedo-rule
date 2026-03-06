@@ -3,7 +3,7 @@
 15m BTC, son 30 gün: Her market'in TÜM snapshot'larini ceker.
 - Market listesini API'den alir (last 30 days, 15m).
 - Pacing: 100 req/sec, 2000 req/min.
-- Kayit: data/15m_30d_snapshots/{market_id}.json
+- Kayit: data/market_snapshot/{market_id}.json
 """
 
 import json
@@ -83,7 +83,7 @@ DAYS = 30
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "..", "data")
-    out_dir = os.path.join(data_dir, "15m_30d_snapshots")
+    out_dir = os.path.join(data_dir, "market_snapshot")
     os.makedirs(out_dir, exist_ok=True)
 
     now = datetime.now(timezone.utc)

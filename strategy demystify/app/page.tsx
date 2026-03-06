@@ -90,56 +90,66 @@ export default function StrategyDashboard() {
   const [clarificationOptions, setClarificationOptions] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>("");
-  const [historyHydrated, setHistoryHydrated] = useState(false);
-  const skipNextHistoryPersistRef = useRef(true);
+  const storageLoadedRef = useRef(false);
+  const chatPersistSkipRef = useRef(true);
+  const syncPersistSkipRef = useRef(true);
 
+  // 1) Her mount'ta (tab açıldığında / sayfa yüklendiğinde) localStorage'dan oku. Unmount'ta ref'leri sıfırla ki Strict Mode ikinci mount'ta tekrar okusun.
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (storageLoadedRef.current) return;
+    storageLoadedRef.current = true;
     try {
-      const raw = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      setChatHistory(parsed as ChatMessage[]);
-    } catch (error) {
-      console.warn("Failed to load persisted chat history:", error);
-    } finally {
-      setHistoryHydrated(true);
+      const rawHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+      if (rawHistory) {
+        const parsed = JSON.parse(rawHistory);
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(
+            (m: unknown) => m && typeof m === "object" && "id" in m && "question" in m && "answer" in m
+          );
+          setChatHistory(valid as ChatMessage[]);
+        }
+      }
+      const rawSync = localStorage.getItem(SYNC_STATUS_STORAGE_KEY);
+      if (rawSync && typeof rawSync === "string") setSyncStatus(rawSync);
+    } catch (e) {
+      console.warn("Storage load failed:", e);
     }
+    return () => {
+      storageLoadedRef.current = false;
+      chatPersistSkipRef.current = true;
+      syncPersistSkipRef.current = true;
+    };
   }, []);
 
+  // 2) Chat değişince yaz. İlk çalışmayı atla; boş array asla yazma.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SYNC_STATUS_STORAGE_KEY);
-      if (!raw) return;
-      setSyncStatus(raw);
-    } catch (error) {
-      console.warn("Failed to load persisted sync status:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!historyHydrated) return;
-    if (skipNextHistoryPersistRef.current) {
-      skipNextHistoryPersistRef.current = false;
+    if (typeof window === "undefined") return;
+    if (chatPersistSkipRef.current) {
+      chatPersistSkipRef.current = false;
       return;
     }
+    if (chatHistory.length === 0) return;
     try {
       const trimmed = chatHistory.slice(0, CHAT_HISTORY_LIMIT);
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
-    } catch (error) {
-      console.warn("Failed to persist chat history:", error);
+    } catch (e) {
+      console.warn("Chat persist failed:", e);
     }
-  }, [chatHistory, historyHydrated]);
+  }, [chatHistory]);
 
+  // 3) Sync mesajı değişince yaz. İlk çalışmayı atla; removeItem asla; sadece doluysa setItem.
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (syncPersistSkipRef.current) {
+      syncPersistSkipRef.current = false;
+      return;
+    }
+    if (!syncStatus) return;
     try {
-      if (!syncStatus) {
-        localStorage.removeItem(SYNC_STATUS_STORAGE_KEY);
-      } else {
-        localStorage.setItem(SYNC_STATUS_STORAGE_KEY, syncStatus);
-      }
-    } catch (error) {
-      console.warn("Failed to persist sync status:", error);
+      localStorage.setItem(SYNC_STATUS_STORAGE_KEY, syncStatus);
+    } catch (e) {
+      console.warn("Sync status persist failed:", e);
     }
   }, [syncStatus]);
 
