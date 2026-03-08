@@ -87,7 +87,6 @@ User Query → LLM Parser → ParsedQuery → Backtest Engine → Results
 ├── docs/
 │   ├── glossary.md       # Domain terminology
 │   ├── mapping-rules.md  # User expression mappings
-│   ├── skill-schema.md   # Schema documentation
 │   └── backtest-crypto-trading-terminology-library.md
 ├── data/                 # Cached market data (not in repo)
 ├── requirements.txt
