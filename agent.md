@@ -2,8 +2,8 @@
 
 This document is the operational contract for AI agents working in:
 
-- `/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/strategy demystify`
-- `/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY`
+- `/Users/0xanrelins/Documents/Feature-based Psuedo-rule/strategy demystify`
+- `/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY`
 
 It defines architecture, runtime dependencies, environment policy, execution runbooks, and safe change procedures.
 
@@ -71,7 +71,7 @@ The app must know where the engine is located.
 
 Required in `strategy demystify/.env.local`:
 
-`TEXT_TO_QUERY_PATH=/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY`
+`TEXT_TO_QUERY_PATH=/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY`
 
 If this path is wrong, `/api/motor` and `/api/sync-cache` fail.
 

@@ -1,17 +1,17 @@
 # Strategy Demystify + Cursor Score Strategy Integration Plan
 
-## Skill Analizi
+## Skill analysis
 
 [GitHub - 0xanrelins/cursor-score-strategy](https://github.com/0xanrelins/cursor-score-strategy)
 
-**Skill Özellikleri:**
-- Python tabanlı backtesting (Backtrader)
+**Skill features:**
+- Python-based backtesting (Backtrader)
 - 0-100 Scoring Framework (5 metric)
 - Natural language → strategy parser
 - Red flag detection
 - Terminal-formatted output
 
-**Skorlama Metrikleri:**
+**Scoring metrics:**
 1. **PF** (Profit Factor) - 20%
 2. **MDD** (Max Drawdown) - 20%
 3. **Sharpe** (Sharpe Ratio) - 20%
@@ -22,39 +22,39 @@ Bonus: +10 | Penalty: -10 | Categories: Exceptional/Excellent/Good/Fair/Poor
 
 ---
 
-## Entegrasyon Seçenekleri
+## Integration options
 
 ### Seçenek A: Full Python Backend (Complex)
 ```
 Next.js Frontend ← → Python FastAPI Backend ← → Backtrader Engine
 ```
-- **Avantaj:** Gerçek backtest, historical data
-- **Dezavantaj:** Deployment karmaşıklığı, ayrı server
+- **Advantage:** Real backtest, historical data
+- **Disadvantage:** Deployment complexity, separate server
 
 ### Seçenek B: Scoring Logic Port (Recommended)
 ```
-Next.js Frontend ← → TypeScript Scoring Engine (Skill mantığı port edilmiş)
+Next.js Frontend ← → TypeScript Scoring Engine (skill logic ported)
 ```
-- **Avantaj:** Tek codebase, hızlı deployment, client-side çalışır
-- **Dezavantaj:** Backtesting simüle (mock data ile historical simülasyon)
+- **Advantage:** Single codebase, fast deployment, runs client-side
+- **Disadvantage:** Backtesting simulated (historical simulation with mock data)
 
 ### Seçenek C: Hybrid Approach
-- **Phase 1:** Scoring mantığını TypeScript'e port et (şimdi)
-- **Phase 2:** İsteğe bağlı Python microservice (gelecekte)
+- **Phase 1:** Port scoring logic to TypeScript (now)
+- **Phase 2:** Optional Python microservice (later)
 
 ---
 
-## Önerilen Plan (Seçenek B - Port)
+## Recommended plan (Option B - Port)
 
 ### Phase 1: Scoring Engine Migration
-**Hedef:** Python scoring mantığını TypeScript'e çevir
+**Goal:** Port Python scoring logic to TypeScript
 
-1. **Yeni Metrikler** (Mevcut PT/PRO/SR/CARD/AE yerine)
-   - PF: Profit Factor (kazanç/kayıp oranı)
+1. **New metrics** (replacing current PT/PRO/SR/CARD/AE)
+   - PF: Profit Factor (gain/loss ratio)
    - MDD: Max Drawdown (%)
    - Sharpe: Risk-adjusted return
    - CAGR: Annual performance
-   - Win Rate: Trade başarı oranı
+   - Win Rate: Trade success rate
 
 2. **ScoreCalculator Service** (TypeScript)
    ```
@@ -62,7 +62,7 @@ Next.js Frontend ← → TypeScript Scoring Engine (Skill mantığı port edilmi
    └── scoreCalculator.ts
    ```
    - Her metrik 0-20 puan
-   - Bonus/Penalty mantığı
+   - Bonus/Penalty logic
    - 0-100 total score
 
 3. **Category/Rating Sistemi**
@@ -78,88 +78,88 @@ Next.js Frontend ← → TypeScript Scoring Engine (Skill mantığı port edilmi
    - Poor Returns: CAGR <10%
 
 ### Phase 2: Natural Language Parser (Basit)
-**Hedef:** "RSI 30'da al" → strateji parametreleri
+**Goal:** "Buy at RSI 30" → strategy parameters
 
 1. **Simple Strategy Parser**
    - Regex-based pattern matching
    - RSI, MA, MACD keyword'leri
-   - Basit indikatör çıkarımı
+   - Simple indicator extraction
 
 2. **Mock Historical Data**
    - Deterministic simülasyon
-   - Question hash → fake backtest sonuçları
-   - Gerçekçi PF, MDD, Sharpe değerleri
+   - Question hash → fake backtest results
+   - Realistic PF, MDD, Sharpe values
 
 ### Phase 3: UI Enhancements
 
-1. **Yeni ScoreTable** (6 metric gösterimi)
+1. **New ScoreTable** (6-metric display)
    ```
    PF | MDD | Sharpe | CAGR | WinRate | TOTAL
    2.3 | 15% | 1.8    | 22%  | 58%     | 79
    ```
 
 2. **Red Flag Banner**
-   - Sarı/Red uyarılar (UI'da görsel)
+   - Yellow/Red alerts (visible in UI)
    - "⚠️ Overfitting Risk Detected"
 
 3. **Category Badge**
-   - Renkli kategoriler (yeşil/sarı/kırmızı)
+   - Color categories (green/yellow/red)
 
 4. **Strategy Breakdown**
-   - Her metrik neden o puanı aldı?
+   - Why did each metric get that score?
    - "PF: 2.3 → 16/20 points (Good)"
 
 ---
 
-## Dosya Değişiklikleri
+## File changes
 
 ### Yeni Dosyalar
 ```
 app/
 ├── services/
-│   ├── scoreCalculator.ts     # Ana scoring mantığı
+│   ├── scoreCalculator.ts     # Core scoring logic
 │   ├── strategyParser.ts      # NL → strategy params
-│   └── enhancedMockAI.ts      # Yeni mock (skill mantığıyla)
+│   └── enhancedMockAI.ts      # New mock (skill logic)
 ├── types/
-│   └── scoring.ts             # Yeni metric tipleri
+│   └── scoring.ts             # New metric types
 └── components/
-    ├── ScoreTableV2.tsx         # Güncellenmiş score table
-    └── RedFlagAlert.tsx         # Uyarı banner'ı
+    ├── ScoreTableV2.tsx         # Updated score table
+    └── RedFlagAlert.tsx         # Alert banner
 ```
 
-### Güncellenecekler
+### To update
 ```
 app/
 ├── page.tsx                   # Yeni state'ler
 ├── components/
 │   ├── ChatOutput.tsx         # Yeni format + red flags
-│   └── ChatList.tsx           # Yeni sorting (skill'e göre)
+│   └── ChatList.tsx           # New sorting (by skill)
 ```
 
-### Silinecekler
+### To remove
 ```
 app/
 ├── services/mockAI.ts         # Eski mock yerine enhanced versiyon
-└── types/index.ts             # Eski ScoreBreakdown yerine yeni
+└── types/index.ts             # Replace old ScoreBreakdown with new
 ```
 
 ---
 
-## Örnek Kullanıcı Akışı
+## Example user flow
 
-### Before (Mevcut)
+### Before (current)
 ```
 User: "Is buy the dip good?"
 AI:  PT: 3.5 | PRO: 35 | SR: 1 | CARD: 22 | AE: 35 | TOTAL: 59
 ```
 
-### After (Skill Entegreli)
+### After (with skill)
 ```
-User: "RSI 30'da al, 70'te sat"
+User: "Buy at RSI 30, sell at 70"
 ↓
 Parser: RSI(14) < 30 (entry), RSI(14) > 70 (exit)
 ↓
-Mock Backtest: 90 gün, 47 trades
+Mock Backtest: 90 days, 47 trades
 ↓
 Scores: PF: 2.3 | MDD: 15% | Sharpe: 1.8 | CAGR: 22% | WinRate: 58%
 ↓
@@ -176,17 +176,17 @@ Recommendation: Deploy with caution
 
 ## Teknik Notlar
 
-### Mock vs Gerçek
-- Şimdilik **mock/simulation** kullanacağız
-- Skill'in mantığı aynı, sadece data fake
-- Gelecekte gerçek backtest için Python API eklenebilir
+### Mock vs real
+- For now we use **mock/simulation**
+- Skill logic is the same, only data is fake
+- Python API can be added later for real backtest
 
-### Sıralama Değişimi
-- Mevcut: TOTAL'a göre sıralama
-- Yeni: Aynı (skill de total score veriyor)
-- Compatibility korunur
+### Sorting change
+- Current: Sort by TOTAL
+- New: Same (skill also gives total score)
+- Compatibility preserved
 
-### Renk Kodlaması
+### Color coding
 | Range | Category | Color |
 |-------|----------|-------|
 | 90-100 | Exceptional | 🟢 Green |
@@ -197,9 +197,9 @@ Recommendation: Deploy with caution
 
 ---
 
-## Tahmini Süre
+## Estimated time
 
-| Phase | Süre | İçerik |
+| Phase | Duration | Content |
 |-------|------|--------|
 | 1 | 1.5h | Scoring engine + types |
 | 2 | 1h | Parser + enhanced mock |
@@ -209,11 +209,11 @@ Recommendation: Deploy with caution
 
 ---
 
-## Onay Bekleniyor
+## Pending approval
 
-Bu planı onaylarsan **Phase 1** ile başlıyorum.
+Once you approve this plan, I'll start with **Phase 1**.
 
-**Sorular:**
-1. Mevcut PT/PRO/SR/CARD/AE metriklerini TAMAMEN mi değiştiriyoruz? Yoksa ikisi de mi kalsın?
-2. Parser için hangi indikatörler? (RSI, MA, MACD?)
-3. Mock data deterministik mi olsun? (Aynı soru = Aynı sonuç)
+**Questions:**
+1. Do we replace current PT/PRO/SR/CARD/AE metrics entirely, or keep both?
+2. Which indicators for the parser? (RSI, MA, MACD?)
+3. Should mock data be deterministic? (Same question = same result)

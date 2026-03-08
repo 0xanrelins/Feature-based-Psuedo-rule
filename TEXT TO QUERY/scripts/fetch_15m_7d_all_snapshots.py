@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-15m BTC, son 30 gün: Her market'in TÜM snapshot'larini ceker.
-- Market listesini API'den alir (last 30 days, 15m).
+15m BTC, last 30 days: Fetches ALL snapshots for each market.
+- Gets market list from API (last 30 days, 15m).
 - Pacing: 100 req/sec, 2000 req/min.
-- Kayit: data/market_snapshot/{market_id}.json
+- Writes: data/market_snapshot/{market_id}.json
 """
 
 import json

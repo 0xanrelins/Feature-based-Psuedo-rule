@@ -15,31 +15,31 @@
 
 ---
 
-## Strategy (En Kısa Süre)
+## Strategy (minimum time)
 
-1. **Market listesi**  
+1. **Market list**  
    `GET /v1/markets?market_type=15m&limit=100&offset=0,100,...`  
-   Sadece `start_time` son 7 gün içinde olanları al. ≈7 istek.
+   Keep only markets whose `start_time` is within the last 7 days. ≈7 requests.
 
-2. **Her market için tüm snapshot’lar**  
-   Market listesini sırayla dolaş; her biri için:  
+2. **All snapshots per market**  
+   Iterate over the market list; for each:  
    `GET /v1/markets/{market_id}/snapshots?limit=1000&offset=0,1000,...`  
-   Tekrar 1000’den az gelene kadar offset artır. Böylece her market tamamen biter.
+   Increment offset until fewer than 1000 are returned. Each market is fully fetched.
 
 3. **Pacing**  
-   - **Burst:** Saniyede en fazla 100 istek → 2000 istek ≈ 20 saniyede.  
-   - **Dakika:** Bir dakikada 2000 istekten sonra bir sonraki dakika penceresine kadar bekle, sonra kalan istekleri at.
+   - **Burst:** At most 100 requests per second → 2000 requests in ≈20 seconds.  
+   - **Per minute:** After 2000 requests in a minute, wait until the next minute window, then send remaining requests.
 
-4. **Kayıt**  
-   Her market için ayrı dosya: `data/15m_7d_snapshots/{market_id}.json`  
-   (İstersen tek büyük dosya da yapılabilir; ayrı dosya resume ve kontrol için kolay.)
+4. **Storage**  
+   One file per market: `data/15m_7d_snapshots/{market_id}.json`  
+   (A single large file is possible; separate files make resume and inspection easier.)
 
 ---
 
-## Tahmini Süre
+## Estimated time
 
-- **Dakika 1:** 7 (liste) + 1993 (snapshot) = 2000 istek → ~20 saniye (burst’e uygun)
-- **Dakika 2:** 2000 istek → ~20 saniye
-- **Dakika 3:** 1383 istek → ~14 saniye  
+- **Minute 1:** 7 (list) + 1993 (snapshots) = 2000 requests → ~20 seconds (within burst)
+- **Minute 2:** 2000 requests → ~20 seconds
+- **Minute 3:** 1383 requests → ~14 seconds  
 
-**Toplam duvar saati:** ~3 dakika (rate pencereleri nedeniyle; gerçek istek süresi ~1 dakika, kalan süre bekleme).
+**Total wall time:** ~3 minutes (due to rate windows; actual request time ~1 minute, rest is waiting).

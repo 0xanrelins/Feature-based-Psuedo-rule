@@ -65,7 +65,7 @@ function formatStrategyForConfirmation(
     `${JSON.stringify(machineForm, null, 2)}\n` +
     "```";
 
-  return `## 🤔 Şöyle anladım, doğru mu?\n\n` +
+  return `## 🤔 Here's how I understood it — correct?\n\n` +
     parserNotice +
     warningNotice +
     `**Market:** ${strategy.market_type}\n` +
@@ -73,7 +73,7 @@ function formatStrategyForConfirmation(
     `**Entry Strategy:**\n${triggers}\n\n` +
     entryWindow +
     exitLine +
-    `_Onaylarsan backtest çalıştırılacak._` +
+    `_If you confirm, the backtest will run._` +
     machineBlock;
 }
 
@@ -94,7 +94,7 @@ export default function StrategyDashboard() {
   const chatPersistSkipRef = useRef(true);
   const syncPersistSkipRef = useRef(true);
 
-  // 1) Her mount'ta (tab açıldığında / sayfa yüklendiğinde) localStorage'dan oku. Unmount'ta ref'leri sıfırla ki Strict Mode ikinci mount'ta tekrar okusun.
+  // 1) On each mount (tab open / page load) read from localStorage. Reset refs on unmount so Strict Mode re-reads on second mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (storageLoadedRef.current) return;
@@ -122,7 +122,7 @@ export default function StrategyDashboard() {
     };
   }, []);
 
-  // 2) Chat değişince yaz. İlk çalışmayı atla; boş array asla yazma.
+  // 2) Persist when chat changes. Skip first run; never write empty array.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (chatPersistSkipRef.current) {
@@ -138,7 +138,7 @@ export default function StrategyDashboard() {
     }
   }, [chatHistory]);
 
-  // 3) Sync mesajı değişince yaz. İlk çalışmayı atla; removeItem asla; sadece doluysa setItem.
+  // 3) Persist when sync message changes. Skip first run; never removeItem; setItem only when non-empty.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (syncPersistSkipRef.current) {

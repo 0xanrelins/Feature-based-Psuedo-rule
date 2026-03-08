@@ -4,63 +4,61 @@ Feature-based Pseudo-rule
 
 ---
 
-
-
 - Technical Analysis–based
 - definments = bounded context
-- user natural language  to database query 
+- user natural language to database query
 - Mapping rules doc
-- **NLP / intent parsing + domain model**  
-- “Agent” dediğin kısım burada ayrı bir ajan orkestrasyonu değil; pratikte 1 LLM parse çağrısı + deterministic backtest pipeline.
+- **NLP / intent parsing + domain model**
+- The "Agent" part here is not a separate agent orchestration; in practice it's 1 LLM parse call + deterministic backtest pipeline.
 
 ---
 
 ### "TA"
 
-### 3 yapı **industry standard**:
+### 3 structures **industry standard**:
 
 - Trend Following
 - Breakout
 - Mean Reversion
 
-Bu üçü zaten **tüm sistematik trading evrenini kapsar**.
+These three **cover the entire systematic trading universe**.
 
 ---
 
 Notes;
 
-- ❌ OHLC → gerçek volume üretmez
-- ✅ Profesyoneller **3 yapıdan birini** seçer
-- ✅ Mean Reversion **BTC’de çok güçlüdür**
-- ❌ Ama **sadece doğru market rejiminde**
+- ❌ OHLC → does not produce real volume
+- ✅ Professionals **choose one of the 3 structures**
+- ✅ Mean Reversion **is very strong on BTC**
+- ❌ But **only in the right market regime**
 
 ---
 
-Bir sonraki adımda istersen:
+Optional next steps:
 
-- 🔬 **Mean Reversion için backtest framework**
+- 🔬 **Backtest framework for Mean Reversion**
 - 🧠 **Market regime detection (rule-based)**
 - 🧩 **Price-only → feature engineering**
 
 ---
 
-## 3.3 Profesyoneller Mean Reversion’ı NASIL bozar?
+## 3.3 How do professionals break Mean Reversion?
 
-Çoğu kişinin kaybettiği yer burası:
+Where most people lose:
 
-❌ **Trend markette mean reversion denemek**  
-❌ **Stop kullanmamak**  
-❌ **“Biraz daha düşer ama döner” demek**
+❌ **Trying mean reversion in a trend market**  
+❌ **Not using a stop**  
+❌ **Assuming "it will dip a bit more then reverse"**
 
-Profesyonel ise:
+Professionals:
 
-- **ATR stop** kullanır
-- **Zaman stop** koyar (ör: 10 mumda dönmezse çık)
-- **Win rate yüksek / RR düşük** kabul eder
+- Use **ATR stop**
+- Use **time stop** (e.g. exit if no reversal in 10 candles)
+- Accept **high win rate / low RR**
 
 ---
 
-## Basit ama Gerçekçi Pseudo-Rule
+## Simple but realistic Pseudo-Rule
 
 ```
 IF
@@ -75,21 +73,21 @@ THEN
 
 ---
 
-Bu şunu kabul eder:
+This accepts:
 
-- Win rate yüksek
-- Risk/Reward düşük
-- Ama sistematik
+- High win rate
+- Low Risk/Reward
+- But systematic
 
-> Profesyonel farkı burada başlar.
-
----
-
-İndikatörler **araçtır**, kural değildir.  
+> The professional edge starts here.
 
 ---
 
-## Pseudo-Rule nasıl yazılır? (Genel Şablon)
+Indicators are **tools**, not rules.
+
+---
+
+## How to write a Pseudo-Rule (general template)
 
 ```
 IF
@@ -104,50 +102,50 @@ THEN
 
 ---
 
-Özet (çok net)
+Summary (very clear)
 
-- ✅ Pseudo-Rule = stratejiyi **formülize etmek**
-- ✅ İnsan + makine için **ortak dil**
-- ❌ “Grafikte gördüm” yaklaşımı değil
-- ✅ Backtest, optimization, deployment’a açılır
+- ✅ Pseudo-Rule = **formalizing** the strategy
+- ✅ **Common language** for human + machine
+- ❌ Not the "I saw it on the chart" approach
+- ✅ Opens to backtest, optimization, deployment
 
 ---
 
 - User asks (natural language)
 - System parses to structured rule
-- Agent/UI returns human-form summary (“Şöyle anladım”)
-- Onay sonrası execution/backtest çalışır.
+- Agent/UI returns human-form summary ("Here's how I understood it")
+- After confirmation, execution/backtest runs.
 
 ---
 
-### METRICS (en kritik kısım)
+### METRICS (most critical part)
 
-Bakılan şeyler:
+What we look at:
 
-- Win rate ❌ tek başına anlamsız
+- Win rate ❌ meaningless alone
 - Expectancy ✅
 - Max drawdown ✅
-- Trade başına süre
-- Hangi markette çalışıyor / ölüyor
+- Time per trade
+- Which market it works in / dies in
 
 ---
 
-## 1.2 Profesyonel Backtest’te sorulan sorular
+## 1.2 Questions asked in professional backtest
 
-> “Kazanıyor mu?” ❌  
-> “**Ne zaman kazanıyor, ne zaman ölüyor?**” ✅
+> "Does it win?" ❌  
+> "**When does it win, when does it die?**" ✅
 
-Örnek sonuç yorumu:
+Example result interpretation:
 
-- Trend market → **zarar**
-- Sideways → **istikrarlı**  
-→ Demek ki **regime filtresi şart**
+- Trend market → **loss**
+- Sideways → **stable**  
+→ So **regime filter is required**
 
 ---
 
 ## Rule-Based Regime Detection (price-only)
 
-### Örnek Pseudo-Rule:
+### Example Pseudo-Rule:
 
 ```
 IF
@@ -167,12 +165,12 @@ THEN
 
 ---
 
-# 3 Adım Birlikte Nasıl Çalışır?
+# How do the 3 steps work together?
 
 ```
 Market Regime
    ↓
-Strateji Seçimi
+Strategy selection
    ↓
 Pseudo-Rule
    ↓
@@ -181,27 +179,25 @@ Backtest
 Optimize / Kill
 ```
 
-
-
 ---
 
-## Uygulama Mimarisi
+## Implementation architecture
 
 ```
-Ham Veri (OHLCV + OB + Funding)
+Raw data (OHLCV + OB + Funding)
         ↓
-Feature Engineering (50+ özellik)
+Feature engineering (50+ features)
         ↓
-Model Eğitimi (XGBoost / Random Forest)
+Model training (XGBoost / Random Forest)
         ↓
-Pseudo-Rule Çıkarımı (SHAP / Rule Extraction)
+Pseudo-Rule extraction (SHAP / Rule Extraction)
         ↓
 Backtest → Paper Trade → Live Trade
 ```
 
 ---
 
-Sistem, bir karara varmak için verinin içindeki farklı özellikleri (renk, boyut, frekans, bağlam vb.) ağırlıklandırır.
+The system weights different features in the data (color, size, frequency, context, etc.) to reach a decision.
 
 ---
 
@@ -209,8 +205,8 @@ Feature-based Pseudo-rule
 
 ---
 
-Senin sistemin aslında bir **"Filtre Bulucu"**ya dönüşecek. Sen "RSI < 10" dediğinde, sistem arka planda o RSI < 10 anlarını "Başarılı" ve "Başarısız" diye iki kutuya ayıracak. Başarılı kutusundaki ortak özellikleri (Yüksek hacim, sabah saatleri vb.) bulup sana raporlayacak.
+Your system will effectively become a **"Filter Finder"**. When you say "RSI < 10", the system will split those RSI < 10 moments into two buckets: "Successful" and "Unsuccessful". It will find common features in the successful bucket (high volume, morning hours, etc.) and report them to you.
 
 ---
 
-Buna **"Feature Importance" (Özellik Önem Analizi)** denir. Sen kod yazmasan da mantık budur: **Hangi yan özellik, ana kuralın başarısını artırıyor?**
+This is called **"Feature Importance" (feature importance analysis)**. Even without writing code, the logic is: **Which secondary feature improves the success of the main rule?**

@@ -91,7 +91,7 @@ Result: 20 × 1000 snapshots.
 - **Per minute:** Send at most **2000** requests per minute.
 - Example: 2000 requests at 100/sec → 20 seconds of sends, then 40 seconds idle in that same minute. Next minute you can send the next 20 requests.
 
-So “en kısa süre” = request’leri bu limitlere uygun şekilde gönderip, toplam 2020 isteği 2 dakikada (Option A) veya 2000 isteği 1 dakikada (Option B) tamamlamak.
+So "minimum time" = send requests within these limits and complete 2020 requests in 2 minutes (Option A) or 2000 requests in 1 minute (Option B).
 
 ---
 

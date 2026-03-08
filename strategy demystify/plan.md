@@ -1,24 +1,24 @@
-# Strategy Demystify - Geliştirme Planı
+# Strategy Demystify - Development plan
 
-## 1. Mevcut Durum Analizi
+## 1. Current state
 
-### Var Olanlar
+### What exists
 - Next.js 15 + React 19 + Tailwind CSS v4
 - StrategyInput (chat input + RUN button)
-- OutputPanel (basit output alanı)
+- OutputPanel (simple output area)
 - StrategyTable (sabit strateji listesi)
 - Dark theme with orange accents
 
-### Eksikler
-- Chat history yönetimi yok
-- AI agent entegrasyonu yok (mock)
-- Interactive chat list yok
-- Expand/collapse özelliği yok
-- Dynamic sorting yok
+### Missing
+- No chat history management
+- No AI agent integration (mock)
+- No interactive chat list
+- No expand/collapse
+- No dynamic sorting
 
 ---
 
-## 2. Hedef Architektur
+## 2. Target architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -46,7 +46,7 @@
 
 ---
 
-## 3. Veri Yapıları (Interfaces)
+## 3. Data structures (interfaces)
 
 ### ChatMessage
 ```typescript
@@ -77,25 +77,25 @@ const [currentChat, setCurrentChat] = useState<ChatMessage | null>(null);
 
 ---
 
-## 4. Bileşen Değişiklikleri
+## 4. Component changes
 
-### A. StrategyInput (Güncelleme - Hafif)
+### A. StrategyInput (light update)
 - Props: `onSubmit: (question: string) => void`
-- Loading state ekle (isAnalyzing)
-- Aynı textarea + RUN button
+- Add loading state (isAnalyzing)
+- Same textarea + RUN button
 
-### B. OutputPanel → ChatOutput (Yeniden Adlandır + Güncelle)
+### B. OutputPanel → ChatOutput (rename + update)
 - Props: `chat: ChatMessage | null`
 - AI response formatter:
-  - Başlık: "Strategy Analysis"
-  - Skor tablosu (PT, PRO, SR, CARD, AE, TOTAL)
-  - Yorum/öneri metni
-  - Zaman damgası
+  - Title: "Strategy Analysis"
+  - Score table (PT, PRO, SR, CARD, AE, TOTAL)
+  - Comment/recommendation text
+  - Timestamp
 - Empty state: "Ask a question to get started"
 
-### C. StrategyTable → ChatList (Yeniden Tasarla)
+### C. StrategyTable → ChatList (redesign)
 - Props: `chats: ChatMessage[], onToggleExpand: (id: string)`
-- **Sort**: TOTAL'a göre desc (yüksekten düşüğe)
+- **Sort**: by TOTAL desc (high to low)
 - **List Item UI**:
   ```
   ┌─────────────────────────────────────────┐
@@ -107,8 +107,8 @@ const [currentChat, setCurrentChat] = useState<ChatMessage | null>(null);
   │ PT: 3.5 | PRO: 35% | SR: 1.0            │
   └─────────────────────────────────────────┘
   ```
-- Expand/Collapse animasyonu
-- Max height ile scrollable içerik
+- Expand/Collapse animation
+- Scrollable content with max height
 - Click anywhere to toggle
 - Active/focus state styling
 
@@ -119,8 +119,8 @@ const [currentChat, setCurrentChat] = useState<ChatMessage | null>(null);
 ### mockAIResponse(question: string): Promise<ChatMessage>
 
 ```typescript
-// Gerçek API yerine mock data döner
-// Her soru için benzersiz ama tutarlı skorlar üretir
+// Returns mock data instead of real API
+// Produces unique but consistent scores per question
 // Basit hash-based logic
 
 const mockAIResponse = async (question: string): Promise<ChatMessage> => {
@@ -130,7 +130,7 @@ const mockAIResponse = async (question: string): Promise<ChatMessage> => {
 }
 ```
 
-### Yanıt Formatı (Markdown)
+### Response format (Markdown)
 ```markdown
 ## Strategy Analysis
 
@@ -154,62 +154,62 @@ excellent average expectancy. Consider position sizing at 2-3% risk.
 
 ## 6. UI/UX Detayları
 
-### Renk Kodlaması (Skorlara Göre)
+### Color coding (by score)
 - **90-100**: Excellent (Green) 🟢
 - **70-89**: Good (Light Green) 
 - **50-69**: Moderate (Yellow) 🟡
 - **30-49**: Weak (Orange) 🟠
 - **0-29**: Poor (Red) 🔴
 
-### Animasyonlar
+### Animations
 - List expand: 200ms ease-out
 - New item: Slide in from top
 - Sort change: 300ms transition
 - Loading: Pulse animation on RUN button
 
-### Boş Durumlar
-- Chat List boş: "No analyzed strategies yet. Ask your first question!"
-- Output boş: Terminal prompt style "➜ Waiting for input..."
+### Empty states
+- Chat list empty: "No analyzed strategies yet. Ask your first question!"
+- Output empty: Terminal prompt style "➜ Waiting for input..."
 
 ---
 
-## 7. Adım Adım Implementasyon
+## 7. Step-by-step implementation
 
-### Phase 1: Veri Yapısı & State (30 dk)
-1. [ ] TypeScript interfaces tanımla (ChatMessage, ScoreBreakdown)
-2. [ ] Mock AI service oluştur
-3. [ ] Page.tsx state yapısını güncelle
+### Phase 1: Data structure & state (30 min)
+1. [ ] Define TypeScript interfaces (ChatMessage, ScoreBreakdown)
+2. [ ] Create mock AI service
+3. [ ] Update Page.tsx state structure
 
-### Phase 2: ChatOutput Bileşeni (45 dk)
+### Phase 2: ChatOutput component (45 min)
 1. [ ] OutputPanel → ChatOutput rename
-2. [ ] AI yanıt formatter'ı yaz
-3. [ ] Markdown-to-JSX rendering (basit)
-4. [ ] Skor tablosu component'i
+2. [ ] Write AI response formatter
+3. [ ] Markdown-to-JSX rendering (simple)
+4. [ ] Score table component
 
-### Phase 3: ChatList Bileşeni (60 dk)
+### Phase 3: ChatList component (60 min)
 1. [ ] StrategyTable → ChatList rename
 2. [ ] Sort logic (by total score)
-3. [ ] Expand/Collapse mekanizması
+3. [ ] Expand/Collapse mechanism
 4. [ ] List item UI redesign
-5. [ ] Empty state ekle
+5. [ ] Add empty state
 
-### Phase 4: Input & Integration (30 dk)
+### Phase 4: Input & integration (30 min)
 1. [ ] StrategyInput loading state
-2. [ ] onSubmit handler bağla
-3. [ ] Yeni chat ekleme flow'u
-4. [ ] Auto-sort trigger'ları
+2. [ ] Wire onSubmit handler
+3. [ ] New chat add flow
+4. [ ] Auto-sort triggers
 
-### Phase 5: Polish (30 dk)
+### Phase 5: Polish (30 min)
 1. [ ] Animasyonlar (Tailwind transitions)
 2. [ ] Responsive adjustments
 3. [ ] Color coding implementasyonu
 4. [ ] Test & debug
 
-**Toplam Tahmini Süre: ~3 saat**
+**Total estimated time: ~3 hours**
 
 ---
 
-## 8. Dosya Yapısı (Hedef)
+## 8. Target file structure
 
 ```
 app/
@@ -218,11 +218,11 @@ app/
 │   ├── ChatOutput.tsx        (renamed from OutputPanel)
 │   ├── ChatList.tsx          (renamed from StrategyTable)
 │   ├── ScoreTable.tsx        (new - skor tablosu)
-│   └── ChatListItem.tsx      (new - list item component)
+│   └── ChatListItem.tsx      (new - list item)
 ├── services/
-│   └── mockAI.ts             (new - mock AI service)
+│   └── mockAI.ts             (new - mock AI)
 ├── types/
-│   └── index.ts              (new - TypeScript interfaces)
+│   └── index.ts              (new - interfaces)
 ├── page.tsx                  (updated)
 ├── layout.tsx
 └── globals.css
@@ -230,34 +230,34 @@ app/
 
 ---
 
-## 9. Örnek Kullanıcı Akışı
+## 9. Example user flow
 
-1. User "Buy the dip strategy?" yazar → RUN
+1. User types "Buy the dip strategy?" → RUN
 2. Loading state (1.5s)
-3. AI response gelir → ChatOutput'ta göster
-4. Chat otomatik ChatList'e eklenir
-5. ChatList TOTAL'a göre sıralanır
-6. Yeni item #1 sıraya yerleşir
-7. User ChatList'teki item #2'ye tıklar
-8. Item expands, detaylar görünür
-9. User başka soru sorar
-10. Süreç tekrarlanır, list büyür
+3. AI response arrives → shown in ChatOutput
+4. Chat is added to ChatList automatically
+5. ChatList sorted by TOTAL
+6. New item goes to #1
+7. User clicks item #2 in ChatList
+8. Item expands, details visible
+9. User asks another question
+10. Process repeats, list grows
 
 ---
 
 ## 10. Teknik Notlar
 
-- **Sorting**: Array.sort() ile her eklemede yeniden sırala
-- **ID Generation**: `Date.now()` + `Math.random()` hex string
-- **Storage**: Şimdilik sadece state (localStorage sonraki phase)
-- **Mock AI**: Basit hash function ile deterministic scores
-- **Performance**: max 100 chat item (eski silinir)
+- **Sorting**: Re-sort on each add with Array.sort()
+- **ID generation**: `Date.now()` + `Math.random()` hex string
+- **Storage**: State only for now (localStorage in next phase)
+- **Mock AI**: Deterministic scores via simple hash
+- **Performance**: max 100 chat items (old ones removed)
 
 ---
 
-## Onay Bekleniyor
+## Pending approval
 
-Bu planı onayladıktan sonra **Phase 1** ile başlayacağım.
-Her phase tamamlandığında kontrol etmenizi isteyeceğim.
+After you approve this plan I'll start with **Phase 1**.
+I'll ask you to check after each phase is done.
 
-Değiştirmek istediğiniz yer var mı?
+Anything you want to change?

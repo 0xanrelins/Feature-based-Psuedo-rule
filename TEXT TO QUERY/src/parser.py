@@ -175,10 +175,10 @@ def parse_price_condition(text: str, direction: str) -> str | None:
     if above:
         return f"{price_field} > {above.group(1)}"
 
-    below = re.search(r"(?:below|under|<|altın)\s*(0\.\d+)", lower)
+    below = re.search(r"(?:below|under|<|altın)\s*(0\.\d+)", lower)  # altın = below (legacy)
     if below:
         return f"{price_field} < {below.group(1)}"
-    # Turkish: "0.40'ın altına düştüğünde", "0.40 altına"
+    # Legacy: "X altına" (below X) pattern
     below_tr = re.search(r"(0\.\d+)\s*(?:'ın|'in|un|in)?\s*alt[iı]na", lower)
     if below_tr:
         return f"{price_field} < {below_tr.group(1)}"
@@ -188,9 +188,9 @@ def parse_price_condition(text: str, direction: str) -> str | None:
         val = float(around.group(1))
         return f"{val - 0.02} <= {price_field} <= {val + 0.02}"
 
-    if any(w in lower for w in ("cheap", "low", "dusuk", "ucuz")):
+    if any(w in lower for w in ("cheap", "low", "dusuk", "ucuz")):  # legacy Turkish
         return f"{price_field} < 0.40"
-    if any(w in lower for w in ("expensive", "high", "yuksek", "pahali")):
+    if any(w in lower for w in ("expensive", "high", "yuksek", "pahali")):  # legacy Turkish
         return f"{price_field} > 0.60"
 
     return None
@@ -201,7 +201,7 @@ def parse_price_condition(text: str, direction: str) -> str | None:
 def parse_sell_condition(text: str, direction: str) -> str:
     lower = text.lower()
 
-    if any(w in lower for w in ("immediately", "right away", "hemen", "aninda")):
+    if any(w in lower for w in ("immediately", "right away", "hemen", "aninda")):  # legacy Turkish
         return "immediate"
 
     sell_price = re.search(
@@ -218,12 +218,12 @@ def parse_exit_on_pct_move(text: str) -> tuple[float | None, str]:
     """Return (exit_on_pct_move, exit_pct_move_direction). E.g. 'sell after 0.2% move' -> (0.2, 'any')."""
     lower = text.lower()
     pct = None
-    # "0.2% move", "sell after 0.2% move", "0.1% kar yönünde hareket", "X% hareket"
+    # "0.2% move", "sell after 0.2% move", "X% move" (legacy: hareket/kar)
     m = re.search(r"(?:sell\s+after|exit\s+when|when\s+it\s+moves|moves?|hemen\s+.*?)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:move|moved|hareket|kar)?", lower)
     if not m:
         m = re.search(r"(\d+(?:\.\d+)?)\s*%\s*(?:move|moved|hareket|kar)", lower)
     if not m:
-        m = re.search(r"(\d+(?:\.\d+)?)\s*%\s+", lower)  # e.g. "0.1% kar yönünde"
+        m = re.search(r"(\d+(?:\.\d+)?)\s*%\s+", lower)  # e.g. "0.1% in favor"
     if m:
         try:
             pct = float(m.group(1))
@@ -232,7 +232,7 @@ def parse_exit_on_pct_move(text: str) -> tuple[float | None, str]:
     direction = "any"
     if any(w in lower for w in ("opposite side", "moves opposite", "against us", "goes against", "against")):
         direction = "against"
-    elif any(w in lower for w in ("in favor", "in our favor", "favor", "kar yönünde", "kar yonunde", "kar yonunde")):
+    elif any(w in lower for w in ("in favor", "in our favor", "favor", "kar yönünde", "kar yonunde")):  # legacy Turkish
         direction = "favor"
     return pct, direction
 

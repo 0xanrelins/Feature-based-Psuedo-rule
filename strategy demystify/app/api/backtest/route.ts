@@ -195,7 +195,7 @@ function parseStrategy(description: string) {
     params.recognizedPatterns.push('RSI_Mean_Reversion');
   }
 
-  // MA pattern: "50 günlük MA üstüne geçince al" or "50 day MA"
+  // MA pattern: "50 day MA cross above" or "50 day MA"
   const maMatch = lower.match(/(\d+)\s*(?:günlük|gün|day|period)/i);
   if (maMatch) {
     params.indicators.push({ type: 'MA', period: parseInt(maMatch[1]) });

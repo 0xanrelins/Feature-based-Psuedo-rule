@@ -1,56 +1,56 @@
-# Text-to-Query Backtest Skill — Schema Özeti
+# Text-to-Query Backtest Skill — Schema summary
 
-Kullanıcı cümlesi → Parse (LLM veya rule-based) → **ParsedQuery** → Backtest.
+User sentence → Parse (LLM or rule-based) → **ParsedQuery** → Backtest.
 
 ---
 
-## ParsedQuery (Ana Şema)
+## ParsedQuery (main schema)
 
-| Alan | Tip | Açıklama |
+| Field | Type | Description |
 |------|-----|----------|
 | `market_type` | str | `5m` \| `15m` \| `1hr` \| `4hr` \| `24hr` |
-| `start_time`, `end_time` | datetime | Backtest tarih aralığı |
-| `buy_triggers` | list[dict] | `[{ "condition": str, "token": "up" \| "down" }, ...]` — ilk tetiklenen kazanır |
-| `sell_condition` | str | `market_end` \| `immediate` \| veya fiyat/indikatör koşulu |
+| `start_time`, `end_time` | datetime | Backtest date range |
+| `buy_triggers` | list[dict] | `[{ "condition": str, "token": "up" \| "down" }, ...]` — first trigger wins |
+| `sell_condition` | str | `market_end` \| `immediate` \| or price/indicator condition |
 | `price_source` | str | `token` \| `btc_price` |
-| `entry_window_minutes` | int \| null | Sadece session içinde N dakikada giriş (null = tüm session) |
-| `entry_window_anchor` | str | `start` \| `end` (ilk / son N dakika) |
-| `exit_on_pct_move` | float \| null | Girişe göre % hareket olunca çık (örn. 0.2 = %0.2) |
+| `entry_window_minutes` | int \| null | Entry only within N minutes of session (null = full session) |
+| `entry_window_anchor` | str | `start` \| `end` (first / last N minutes) |
+| `exit_on_pct_move` | float \| null | Exit when % move from entry (e.g. 0.2 = 0.2%) |
 | `exit_pct_move_ref` | str | `token` \| `btc` |
 | `exit_pct_move_direction` | str | `any` \| `favor` \| `against` |
 | `action` | str | `backtest` \| `list_markets` \| `snapshot_at` |
 
 ---
 
-## Condition İfadeleri
+## Condition expressions
 
-- **Karşılaştırma:** `price_up > 0.60`, `rsi < 30`, `macd_hist > 0`
-- **Eşitlik:** `prev_5_btc_candles_same_color == "green"`
-- **Aralık:** `0.40 <= price_up <= 0.60`
-- **Crossover:** `ema_12 crosses_above price_up`, `rsi crosses_above 30` (önceki snapshot gerekir)
+- **Comparison:** `price_up > 0.60`, `rsi < 30`, `macd_hist > 0`
+- **Equality:** `prev_5_btc_candles_same_color == "green"`
+- **Range:** `0.40 <= price_up <= 0.60`
+- **Crossover:** `ema_12 crosses_above price_up`, `rsi crosses_above 30` (previous snapshot required)
 
 ---
 
-## Desteklenen Alanlar (Snapshot)
+## Supported fields (snapshot)
 
-**Fiyat:** `price_up`, `price_down`, `btc_price`, `btc_pct_from_start`  
-**Özel:** `prev_5_btc_candles_same_color`  
+**Price:** `price_up`, `price_down`, `btc_price`, `btc_pct_from_start`  
+**Special:** `prev_5_btc_candles_same_color`  
 **TA:** `rsi`, `rsi_7`, `ema_9`, `ema_12`, `ema_20`, `ema_26`, `ema_50`, `macd`, `macd_signal`, `macd_hist`, `bb_upper`, `bb_middle`, `bb_lower`, `stoch_rsi_k`, `stoch_rsi_d`, `btc_rsi`, `btc_ema_9`, `btc_ema_12`, `btc_ema_20`
 
-Desteklenmeyen (clarification): vwap, atr, cci, williams, adx, ichimoku, volume, obv, mfi, dmi, vb.
+Unsupported (clarification): vwap, atr, cci, williams, volume, obv, mfi, dmi, etc.
 
 ---
 
-## Akış
+## Flow
 
-1. **Parse:** User text + definments → LLM slots (veya rule-based) → `ParsedQuery`
-2. **Backtest:** Markets listele → her market için snapshot’lar yükle → TA zenginleştir (gerekirse) → entry/exit koşullarını değerlendir → Trade listesi
-3. **Çıkış:** Win rate, PnL, trade detayları
+1. **Parse:** User text + definments → LLM slots (or rule-based) → `ParsedQuery`
+2. **Backtest:** List markets → load snapshots per market → enrich with TA (if needed) → evaluate entry/exit conditions → Trade list
+3. **Output:** Win rate, PnL, trade details
 
 ---
 
-## Kaynaklar
+## References
 
-- Slot kuralları: `docs/mapping-rules.md`
-- Terimler: `docs/glossary.md`
-- TA terimleri: `docs/backtest-crypto-trading-terminology-library.md`
+- Slot rules: `docs/mapping-rules.md`
+- Terms: `docs/glossary.md`
+- TA terms: `docs/backtest-crypto-trading-terminology-library.md`

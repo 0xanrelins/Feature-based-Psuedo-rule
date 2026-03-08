@@ -1,7 +1,7 @@
 ---
 name: score-strategy
 description: Backtest and score BTC + Polymarket strategies from natural language or metrics
-argument-hint: '"RSI 30\'da al, 70\'te sat" OR --pf 2.3 --mdd 15 --sharpe 1.8 --cagr 22 --winrate 58'
+argument-hint: '"Buy when RSI 30, sell at 70" OR --pf 2.3 --mdd 15 --sharpe 1.8 --cagr 22 --winrate 58'
 allowed-tools: Bash, Read, Write
 ---
 
@@ -16,8 +16,8 @@ Backtest and score BTC + Polymarket trading strategies.
 Describe your strategy in plain language - the skill will parse it, backtest it, and score it:
 
 ```
-score-strategy "RSI 30'da al, 70'te sat"
-score-strategy "50 günlük MA üstüne geçince al, altına inince sat"
+score-strategy "Buy when RSI 30, sell at 70"
+score-strategy "Buy when price crosses above 50-day MA, sell when below"
 ```
 
 **Requirements:**

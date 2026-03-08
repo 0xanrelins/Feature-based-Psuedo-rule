@@ -1,55 +1,55 @@
-# Glossary — Domain terimleri + Polymarket eşlemesi
+# Glossary — Domain terms + Polymarket mapping
 
-> Tek referans: tüm terimler burada tanımlı. LLM prompt’u ve mapping kuralları buna göre.
-> **Kaynaklar:** [Polymarket Docs](https://docs.polymarket.com/), [Polymarket CLI](https://github.com/Polymarket/polymarket-cli)
+> Single reference: all terms are defined here. LLM prompt and mapping rules follow this.
+> **Sources:** [Polymarket Docs](https://docs.polymarket.com/), [Polymarket CLI](https://github.com/Polymarket/polymarket-cli)
 
 ---
 
-## Platform tarafı (Polymarket)
+## Platform side (Polymarket)
 
-| Terim | Tanım | Polymarket karşılığı |
+| Term | Definition | Polymarket equivalent |
 | :--- | :--- | :--- |
-| **Market** | Tek bir evet/hayır sorusu; başlangıç ve bitiş zamanı var; iki outcome (Yes/No). | [Markets & Events](https://docs.polymarket.com/) — market = condition + outcomes; CLI: `polymarket markets get`, `markets list`. |
-| **Event** | İlişkili market’leri gruplayan yapı (örn. “2024 Election”). | CLI: `polymarket events list`, `events get`. Bizim backtest’te tek market = tek session. |
-| **Token** | Bir outcome’a bağlı trade edilebilir pay. Bizde: UP (fiyat yukarı) / DOWN (fiyat aşağı). | Polymarket’te Yes/No token; CLOB’da `tokenID`, fiyat 0–1. CLI: `clob price`, `clob book`. |
-| **Resolution** | Market’in kapanması; kazanan outcome belli olur. | [Resolution](https://docs.polymarket.com/) — resolution sonrası kazanan token 1, diğeri 0. |
-| **CLOB** | Merkezi limit order book; fiyatlar ve emirler burada. | [Orderbook](https://docs.polymarket.com/) — fiyat geçmişi, order book. Bizde snapshot’lar CLOB fiyatlarının zaman serisi. |
+| **Market** | A single yes/no question; has start and end time; two outcomes (Yes/No). | [Markets & Events](https://docs.polymarket.com/) — market = condition + outcomes; CLI: `polymarket markets get`, `markets list`. |
+| **Event** | Structure grouping related markets (e.g. "2024 Election"). | CLI: `polymarket events list`, `events get`. In our backtest, one market = one session. |
+| **Token** | Tradeable share tied to one outcome. Ours: UP (price up) / DOWN (price down). | Polymarket Yes/No token; CLOB has `tokenID`, price 0–1. CLI: `clob price`, `clob book`. |
+| **Resolution** | Market close; winning outcome is determined. | [Resolution](https://docs.polymarket.com/) — after resolution, winning token = 1, other = 0. |
+| **CLOB** | Central limit order book; prices and orders live here. | [Orderbook](https://docs.polymarket.com/) — price history, order book. Our snapshots are CLOB price time series. |
 | **Candle** | In trading/backtest: a price bar over a time period (open, high, low, close). "Same color" = same direction (green = close > open, red = close < open). In our system we have **snapshots** (point-in-time: time, price_up, price_down, btc_price); one snapshot = one "candle" close. "Candle" can mean: (1) one snapshot (token or btc price), or (2) external BTC OHLC bar. For "N candle sequence same color", infer from context; only ask if unclear: token snapshots vs BTC candles. | Snapshot = our data; candle = standard term. |
 
 ---
 
-## Backtest domain (bizim model)
+## Backtest domain (our model)
 
-| Terim | Tanım | Slot / alan |
+| Term | Definition | Slot / field |
 | :--- | :--- | :--- |
-| **Session** | Tek bir market’in ömrü: `start_time` → `end_time`. Süre market_type’a göre (5m, 15m, 1hr, 4hr, 24hr). | `market_type` session süresini belirler; her resolved market = bir session. |
-| **Time range** | Backtest’in kapsadığı **takvim aralığı**. Hangi session’lara bakıyoruz (hangi tarihler arası market’ler). | `start_time`, `end_time` (YYYY-MM-DD veya datetime). |
-| **Entry** | Ne zaman ve hangi koşulla **alım** yapılacak. | `buy_triggers`: liste of `{ condition, token }`; ilk tetiklenen kazanır. |
-| **Entry condition** | Giriş için gerekli koşul (fiyat, BTC % vb.). | `buy_triggers[i].condition` (örn. `price_up >= 0.90`). |
-| **Entry window** | Session içinde girişe izin verilen **zaman aralığı**. Örn. “only in the last minute” = session sonuna göre; “only in the first 10 minutes” = session başlangıcına göre. | `entry_window_minutes` + `entry_window_anchor` (`end`=last N, `start`=first N). |
-| **Exit** | Ne zaman **satış** (pozisyon kapatma). | `sell_condition`: `market_end` | `immediate` | veya fiyat koşulu. |
-| **market_end** | Session sonunda kapat; resolution’a göre kazanan token 1, kaybeden 0. | `sell_condition = "market_end"`. |
-| **entry_price** | Girişteki (filling) fiyat. Çıkış koşulunda "giriş fiyatının X katı" için sağ tarafta kullanılır. | Örn. `sell_condition = "price_up >= 2 * entry_price"`. |
-| **Exit on % move** | Giriş fiyatından (veya BTC fiyatından) belirli bir **yüzde hareket** olduğunda sat. Örn. "sell after 0.2% move" = fiyat girişe göre %0,2 hareket edince çık. | `exit_on_pct_move` (sayı, örn. 0.2), `exit_pct_move_ref` (token / btc), `exit_pct_move_direction` (any / favor / against). |
-| **exit_pct_move_direction** | % hareketin **hangi yönde** olunca çıkılacağı: **any** = herhangi yönde X%, **favor** = lehimize X%, **against** = aleyhimize (ters taraf, "opposite side") X%. | `"any"` \| `"favor"` \| `"against"`. |
+| **Session** | One market's lifetime: `start_time` → `end_time`. Duration depends on market_type (5m, 15m, 1hr, 4hr, 24hr). | `market_type` defines session length; each resolved market = one session. |
+| **Time range** | **Calendar interval** the backtest covers. Which sessions we look at (which date range of markets). | `start_time`, `end_time` (YYYY-MM-DD or datetime). |
+| **Entry** | When and under what condition **buy** happens. | `buy_triggers`: list of `{ condition, token }`; first trigger wins. |
+| **Entry condition** | Condition required for entry (price, BTC %, etc.). | `buy_triggers[i].condition` (e.g. `price_up >= 0.90`). |
+| **Entry window** | **Time window** within the session when entry is allowed. E.g. "only in the last minute" = relative to session end; "only in the first 10 minutes" = relative to session start. | `entry_window_minutes` + `entry_window_anchor` (`end`=last N, `start`=first N). |
+| **Exit** | When to **sell** (close position). | `sell_condition`: `market_end` \| `immediate` \| or price condition. |
+| **market_end** | Close at session end; by resolution, winning token = 1, losing = 0. | `sell_condition = "market_end"`. |
+| **entry_price** | Price at entry (filling). Use on the **right-hand side** in exit conditions for "X times entry price". | E.g. `sell_condition = "price_up >= 2 * entry_price"`. |
+| **Exit on % move** | Sell when a **percent move** from entry price (or BTC price) occurs. E.g. "sell after 0.2% move" = exit when price moves 0.2% from entry. | `exit_on_pct_move` (number, e.g. 0.2), `exit_pct_move_ref` (token / btc), `exit_pct_move_direction` (any / favor / against). |
+| **exit_pct_move_direction** | **Direction** of the % move that triggers exit: **any** = X% either way, **favor** = X% in our favor, **against** = X% against us (opposite side). | `"any"` \| `"favor"` \| `"against"`. |
 
 ---
 
-## Kullanıcı ifadeleri → hangi kavram
+## User expressions → which concept
 
-- “Last 7 days”, “son 3 gün” → **time range** (takvim aralığı).
-- “In the last minute”, “session’ın son dakikasında” → **entry window** (session’a göre; veri aralığı değil).
-- “Price 0.90”, “above 0.60” → **entry condition**.
-- “Sell at close”, “market end”, “resolution” → **exit** = `market_end`.
-- “2x from filling/entry”, “giriş fiyatının 2 katında sat” → **exit** koşulu: `price_up >= 2 * entry_price` (sağ tarafta `entry_price`; sol tarafta anlık fiyat).
-- **“Sell after 0.2% move”**, “exit when price moves X%” → **exit on % move** (`exit_on_pct_move` = X; yön yoksa `any`).
-- “Moves opposite side”, “when it moves against us” → **exit on % move** + yön = **against**.
-- “In our favor”, “when it moves in favor” → **exit on % move** + yön = **favor**.
-- “UP” / “DOWN” → **token** (yön).
+- "Last 7 days", "last 3 days" → **time range** (calendar interval).
+- "In the last minute", "last minute of the session" → **entry window** (relative to session; not data range).
+- "Price 0.90", "above 0.60" → **entry condition**.
+- "Sell at close", "market end", "resolution" → **exit** = `market_end`.
+- "2x from filling/entry", "sell at 2x entry price" → **exit** condition: `price_up >= 2 * entry_price` (RHS `entry_price`; LHS current price).
+- "Sell after 0.2% move", "exit when price moves X%" → **exit on % move** (`exit_on_pct_move` = X; direction defaults to `any`).
+- "Moves opposite side", "when it moves against us" → **exit on % move** + direction = **against**.
+- "In our favor", "when it moves in favor" → **exit on % move** + direction = **favor**.
+- "UP" / "DOWN" → **token** (direction).
 
 ---
 
-## Veri kaynağı notu
+## Data source note
 
-- **PolyBackTest API:** Bizim backtest’te kullandığımız historical snapshot’lar (market başına fiyat serisi, resolution). Polymarket CLOB’un geçmiş verisi / türevi.
-- **Polymarket CLI / Docs:** Market yapısı, token, resolution, order book kavramları için referans. Canlı/geçmiş veri için API farklı olabilir; bizim motor PolyBackTest’e göre.
+- **PolyBackTest API:** Historical snapshots we use in the backtest (per-market price series, resolution). Derivative of Polymarket CLOB history.
+- **Polymarket CLI / Docs:** Reference for market structure, token, resolution, order book. Live/historical API may differ; our engine follows PolyBackTest.

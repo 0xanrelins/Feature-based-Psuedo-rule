@@ -1,59 +1,59 @@
-# LLM model seçimi — Backtest parsing
+# LLM model choice — Backtest parsing
 
-Bu projede doğal dil → yapılandırılmış strateji (ParsedQuery) dönüşümü **OpenRouter** üzerinden bir LLM ile yapılıyor. Şu an **Claude Sonnet 4.6** (`anthropic/claude-sonnet-4.6`) kullanılıyor. Perplexity modelleri bu iş için avantaj sağlar mı, kısa özet aşağıda.
-
----
-
-## Mevcut kullanım
-
-- **Görev:** Kullanıcı cümlesi + definments + glossary/mapping → **tek bir JSON** (action, market_type, buy_triggers, sell_condition, exit_on_pct_move, vb.).
-- **Bağlam:** Sadece verdiğimiz metin (definments, “Today’s date”, user message). **Web araması yok.**
-- **Çıktı:** Şemaya uygun, tutarlı slot doldurma; belirsizse `clarification_needed`.
-
-Yani ihtiyacımız: **sınırlı bağlam + talimatları takip + yapılandırılmış çıktı**. Mikro geliştirme hızı büyük ölçüde **prompt/glossary/mapping** kalitesine ve modelin talimat/şema uyumuna bağlı.
+In this project, natural language → structured strategy (ParsedQuery) is done via **OpenRouter** with an LLM. Currently **Claude Sonnet 4.6** (`anthropic/claude-sonnet-4.6`) is used. Whether Perplexity models add value for this task is summarized below.
 
 ---
 
-## OpenRouter’da Perplexity modelleri (özet)
+## Current usage
 
-[OpenRouter – Perplexity](https://openrouter.ai/perplexity) sayfasındaki modeller kabaca şöyle:
+- **Task:** User sentence + definments + glossary/mapping → **single JSON** (action, market_type, buy_triggers, sell_condition, exit_on_pct_move, etc.).
+- **Context:** Only the text we provide (definments, "Today's date", user message). **No web search.**
+- **Output:** Schema-compliant, consistent slot filling; if ambiguous, set `clarification_needed`.
 
-| Model | Özellik | Fiyat (kabaca) | Bu proje için |
-|--------|----------|----------------|----------------|
-| **Sonar** | Hafif, hızlı, citation; web search opsiyonel | $1/M input, $1/M output | Düşük maliyet denemesi için uygun |
-| **Sonar Pro** | Daha derin sorgular, daha fazla citation, büyük context | $3/M input, $15/M output + search maliyeti | Parsing için gereksiz pahalı |
-| **Sonar Pro Search** | Çok adımlı arama + reasoning | $3/M input, $15/M output + **$18/1k request** | Arama odaklı; parsing için fazla |
-| **Sonar Reasoning / Deep Research** | Çok adımlı araştırma, çok sayıda search | Ek search + reasoning ücreti | Araştırma raporu için; slot doldurma için değil |
-
-Perplexity’nin güçlü yanı: **web’de arama yapıp güncel kaynaklarla cevap ve citation üretmek**. Bizim görevimiz ise **sabit domain (glossary + mapping)** ile slot doldurmak; dış dünyaya sormuyoruz.
+So we need: **bounded context + instruction following + structured output**. Micro-development speed depends largely on **prompt/glossary/mapping** quality and the model’s instruction/schema adherence.
 
 ---
 
-## Perplexity, mikro geliştirme ve sistem geliştirme
+## Perplexity models on OpenRouter (summary)
 
-- **Mikro geliştirme:** Her yeni ifade (“sell after 0.2% move”, “moves opposite side”) için önce **glossary + mapping-rules + LLM prompt’u** güncelleniyor. Burada asıl kazanç: dokümanların net olması ve modelin talimat/şemaya uyması. **Hangi model** kullandığınızdan çok **ne yazdığınız** (tek kaynak, tutarlı terimler) önemli.
-- **Perplexity’ye geçmek** bu slot-filling görevini doğal olarak “daha kolay” yapmaz; çünkü:
-  - Web araması kullanmıyoruz → Sonar Pro Search / Deep Research’ün artısı kullanılmaz.
-  - Citation’a ihtiyacımız yok → Perplexity’nin o tarafı fazladan ödeme anlamına gelir (özellikle Pro/Search modellerde).
-- **Avantaj sağlayabilecek senaryo:** İleride “stratejiyi web’de araştır”, “benzer stratejileri bul”, “analist yorumlarını özetle” gibi **dış bağlam + arama** eklenirse, o zaman **Perplexity (Sonar Pro / Sonar Pro Search)** anlamlı olur. Şu anki “text → ParsedQuery” pipeline’ı için zorunlu değil.
+Models on [OpenRouter – Perplexity](https://openrouter.ai/perplexity) roughly:
 
-**Özet:** Sadece backtest strategy domain parsing için Perplexity’ye geçmek, sistem geliştirmeyi veya mikro geliştirmeyi tek başına kolaylaştırmaz. Asıl kaldıraç: glossary, mapping-rules ve prompt’un tek referans olarak sıkı tutulması.
+| Model | Feature | Price (approx) | For this project |
+|--------|----------|----------------|------------------|
+| **Sonar** | Light, fast, citation; optional web search | $1/M input, $1/M output | Good for low-cost trial |
+| **Sonar Pro** | Deeper queries, more citation, large context | $3/M input, $15/M output + search cost | Unnecessarily expensive for parsing |
+| **Sonar Pro Search** | Multi-step search + reasoning | $3/M input, $15/M output + **$18/1k request** | Search-focused; overkill for parsing |
+| **Sonar Reasoning / Deep Research** | Multi-step research, many searches | Extra search + reasoning fee | For research reports; not slot filling |
 
----
-
-## Ne zaman hangi model?
-
-| Amaç | Öneri |
-|------|--------|
-| **Şu anki parsing (text → JSON slots)** | **Claude Sonnet 4.6** ile devam mantıklı; talimat ve yapılandırılmış çıktıda güçlü. |
-| **Maliyet / hız denemesi** | **Perplexity Sonar** (`perplexity/sonar`) deneyebilirsin; OpenRouter üzerinden aynı API, sadece `OPENROUTER_MODEL` değişir. |
-| **İleride “web’den strateji/piyasa bilgisi getir”** | O zaman **Sonar Pro** veya **Sonar Pro Search** ek bir katman olarak değerlendirilebilir. |
+Perplexity’s strength: **searching the web and producing answers with citations**. Our task is **slot filling from a fixed domain (glossary + mapping)**; we don’t query the outside world.
 
 ---
 
-## Hızlı deneme: Perplexity Sonar
+## Perplexity, micro-development, and system development
 
-Aynı kod ve API; sadece ortam değişkeni:
+- **Micro-development:** For each new phrase ("sell after 0.2% move", "moves opposite side"), **glossary + mapping-rules + LLM prompt** are updated first. The main gain is clear docs and the model following instructions/schema. **What you write** (single source, consistent terms) matters more than **which model** you use.
+- **Switching to Perplexity** doesn’t naturally make this slot-filling task “easier” because:
+  - We don’t use web search → Sonar Pro Search / Deep Research advantages are unused.
+  - We don’t need citations → Perplexity’s strength there is extra cost (especially Pro/Search models).
+- **Where Perplexity could help:** If you later add **external context + search** (“research strategy on the web”, “find similar strategies”, “summarize analyst views”), then **Perplexity (Sonar Pro / Sonar Pro Search)** becomes relevant. Not required for the current “text → ParsedQuery” pipeline.
+
+**Summary:** Switching to Perplexity just for backtest strategy domain parsing doesn’t by itself ease system or micro-development. The main lever is keeping glossary, mapping-rules, and prompt as the single reference.
+
+---
+
+## When to use which model
+
+| Goal | Recommendation |
+|------|----------------|
+| **Current parsing (text → JSON slots)** | **Claude Sonnet 4.6** is a good default; strong on instructions and structured output. |
+| **Cost / speed experiment** | Try **Perplexity Sonar** (`perplexity/sonar`); same API via OpenRouter, only change `OPENROUTER_MODEL`. |
+| **Future “fetch strategy/market info from web”** | Then **Sonar Pro** or **Sonar Pro Search** can be considered as an extra layer. |
+
+---
+
+## Quick try: Perplexity Sonar
+
+Same code and API; only env var:
 
 ```bash
 # .env
@@ -61,14 +61,14 @@ OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MODEL=perplexity/sonar
 ```
 
-OpenRouter’daki güncel model listesi ve fiyatlar: [OpenRouter – Perplexity](https://openrouter.ai/perplexity).  
-Sonar: hafif, ucuz, hızlı; slot-filling için yeterli olabilir. Tutarlılığı birkaç örnek cümleyle (entry window, exit on % move, opposite side vb.) test etmek faydalı olur.
+Current model list and pricing on OpenRouter: [OpenRouter – Perplexity](https://openrouter.ai/perplexity).  
+Sonar: light, cheap, fast; may be enough for slot filling. Test consistency with a few example phrases (entry window, exit on % move, opposite side, etc.).
 
 ---
 
-## Kısa cevap
+## Short answer
 
-- **“Perplexity kullansak mikro geliştirme / sistem geliştirme daha mı kolay olur?”**  
-  Bu projedeki **mevcut görev** (backtest strategy parsing, web yok) için **hayır**; kolaylaştırıcı ek avantaj bekleme. Avantaj, glossary + mapping + prompt’u tek kaynak yapmakta.
-- **“Perplexity’yi ne zaman kullanalım?”**  
-  İleride **web araması / dış kaynak / citation** istersen (ör. “bu stratejiye benzer ne var?”, “son hafta BTC yorumları”) Perplexity modelleri (Sonar Pro / Sonar Pro Search) o aşamada mantıklı ek bir seçenek olur.
+- **“Would using Perplexity make micro / system development easier?”**  
+  For the **current task** in this project (backtest strategy parsing, no web): **no**; don’t expect a simplifying advantage. The advantage is in making glossary + mapping + prompt the single source.
+- **“When should we use Perplexity?”**  
+  When you want **web search / external sources / citations** (e.g. “what’s similar to this strategy?”, “BTC commentary last week”), Perplexity models (Sonar Pro / Sonar Pro Search) become a reasonable extra option.

@@ -123,7 +123,7 @@ OPENAI_LLM_MODEL=gpt-4o-mini
 Required:
 
 ```env
-TEXT_TO_QUERY_PATH=/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY
+TEXT_TO_QUERY_PATH=/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY
 ```
 
 Optional:
@@ -139,7 +139,7 @@ MOTOR_PYTHON_BIN=python3
 ### Stable (recommended)
 
 ```bash
-cd "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/strategy demystify"
+cd "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/strategy demystify"
 npm run build
 PORT=3020 npm run start
 ```
@@ -149,7 +149,7 @@ Open: `http://localhost:3020`
 ### Development
 
 ```bash
-cd "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/strategy demystify"
+cd "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/strategy demystify"
 npm run dev
 ```
 
@@ -158,7 +158,7 @@ Note: for long sessions and fewer hot-reload artifacts, prefer stable mode.
 ### Engine smoke test
 
 ```bash
-cd "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/TEXT TO QUERY"
+cd "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/TEXT TO QUERY"
 python3 -m src.main "buy UP at 0.60 when RSI < 30 in 15m markets last 3 days" --json --dry-run
 ```
 
@@ -202,7 +202,7 @@ Cause: stale/corrupt `.next` artifacts (usually during hot reload churn).
 Fix:
 
 ```bash
-cd "/Users/0xanrelins/Desktop/Feature-based Psuedo-rule/strategy demystify"
+cd "/Users/0xanrelins/Documents/Feature-based Psuedo-rule/strategy demystify"
 pkill -f "next dev" || true
 rm -rf .next
 npm run build

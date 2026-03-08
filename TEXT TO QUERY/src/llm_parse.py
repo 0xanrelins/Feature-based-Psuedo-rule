@@ -286,7 +286,7 @@ Mapping (user phrase → domain field; use definments when user does not specify
 3) Token: "up"/"down", "buy up"/"buy down". Default: definments.token.
 4) Entry (buy_triggers): "above 0.XX" → price_up > 0.XX; "below 0.XX" → price_up < 0.XX; "X cent" → price_up <= 0.0X. Follow BTC → btc_pct conditions; Opposite BTC → tokens swapped.
 5) Entry window: "in the last minute" → entry_window_minutes = 1 and entry_window_anchor="end". "in the first N minutes" → entry_window_minutes = N and entry_window_anchor="start".
-6) Exit: "at close"/"market end" → market_end; "sell immediately" → immediate. "2x from filling/entry" or "giriş fiyatının 2 katı" → sell_condition = "price_up >= 2 * entry_price" (use entry_price on RHS, not price_up). Default: market_end.
+6) Exit: "at close"/"market end" → market_end; "sell immediately" → immediate. "2x from filling/entry" → sell_condition = "price_up >= 2 * entry_price" (use entry_price on RHS, not price_up). Default: market_end.
 7) Exit on % move: "sell when it moves X%" → exit_on_pct_move = X; "in our favor"/"when it moves in favor" → exit_pct_move_direction = "favor"; "against us"/"opposite side" → "against". Default direction "any".
 Condition grammar: BTC % → btc_pct_from_start (e.g. dips 2% → btc_pct_from_start <= -2). Token price → price_up/price_down. "X from entry" → entry_price on RHS only. Never same field on both sides (e.g. price_up >= 2 * price_up is invalid).
 Only set clarification_needed when intent is truly ambiguous."""
@@ -311,12 +311,12 @@ def parse_with_llm(user_text: str, defs: Definments) -> dict[str, Any] | None:
     S3a: Call LLM with bounded context; return slots dict or None if LLM unavailable.
     Keys: action, market_type, token_direction, start_time, end_time, buy_condition, sell_condition, clarification_needed.
     """
-    # Önce kullanıcı metninde desteklenmeyen gösterge var mı kontrol et
+    # Check if user text mentions an unsupported indicator
     unsupported = _user_asked_indicator(user_text)
     if unsupported:
         available = ", ".join(_SUPPORTED_FIELDS)
         return {
-            "clarification_needed": f"'{unsupported.upper()}' verisi mevcut değil. Kullanılabilir alanlar: {available}. Lütfen price_up, price_down, btc_price veya btc_pct_from_start kullanarak bir koşul belirtin."
+            "clarification_needed": f"'{unsupported.upper()}' is not available. Usable fields: {available}. Please specify a condition using price_up, price_down, btc_price, or btc_pct_from_start."
         }
     
     client, model = _get_llm_client()
@@ -456,7 +456,7 @@ def llm_slots_to_parsed_query(slots: dict[str, Any], defs: Definments) -> Parsed
     )
 
 
-# Desteklenen alanlar - sadece bu alanlar condition'lar içinde kullanılabilir
+# Supported fields — only these may be used inside conditions
 _SUPPORTED_FIELDS = [
     "price_up", "price_down", "btc_price", "btc_pct_from_start",
     "prev_5_btc_candles_same_color",
@@ -468,8 +468,8 @@ _SUPPORTED_FIELDS = [
     "btc_rsi", "btc_ema_9", "btc_ema_12", "btc_ema_20"
 ]
 
-# Desteklenmeyen göstergeler - bunlar görülürse clarification gerekir
-# NOT: RSI, EMA, MACD, Bollinger, Stochastic ARTIK destekleniyor (yukarıda _SUPPORTED_FIELDS'de)
+# Unsupported indicators — if seen, clarification is required
+# NOTE: RSI, EMA, MACD, Bollinger, Stochastic are now supported (see _SUPPORTED_FIELDS above)
 _UNSUPPORTED_INDICATORS = [
     "vwap", "atr", "cci", "williams", "adx", "ichimoku", "fibonacci", "pivot",
     "support", "resistance", "volume", "obv", "mfi", "dmi"
@@ -504,17 +504,17 @@ def _validate_conditions(slots: dict[str, Any]) -> str | None:
     for cond in conditions:
         if _condition_has_same_field_on_both_sides(cond):
             return (
-                "Koşulda aynı alan iki tarafta kullanılmış (örn. price_up >= 2 * price_up). "
-                "BTC yüzdesi için btc_pct_from_start, giriş fiyatının katı için sağ tarafta entry_price kullanın."
+                "Same field used on both sides of condition (e.g. price_up >= 2 * price_up). "
+                "Use btc_pct_from_start for BTC %, and entry_price on the right-hand side for entry price multiples."
             )
     
     cond_text = " ".join(conditions).lower()
     
-    # Desteklenmeyen gösterge var mı kontrol et
+    # Check for unsupported indicators
     for indicator in _UNSUPPORTED_INDICATORS:
         if indicator in cond_text:
             available = ", ".join(_SUPPORTED_FIELDS)
-            return f"'{indicator.upper()}' verisi mevcut değil. Kullanılabilir alanlar: {available}. Başka bir koşul belirtir misiniz?"
+            return f"'{indicator.upper()}' is not available. Usable fields: {available}. Please specify another condition."
     
     return None
 
@@ -524,7 +524,7 @@ def needs_clarification(slots: dict[str, Any]) -> bool:
     if slots.get("clarification_needed"):
         return True
     
-    # Desteklenmeyen gösterge kontrolü
+    # Unsupported indicator check
     if _validate_conditions(slots):
         return True
     
@@ -538,7 +538,7 @@ def needs_clarification(slots: dict[str, Any]) -> bool:
 
 def get_clarification_message(slots: dict[str, Any]) -> str | None:
     """Message to show user when needs_clarification(slots) is True."""
-    # Önce desteklenmeyen gösterge kontrolü
+    # Check for unsupported indicators first
     unsupported_msg = _validate_conditions(slots)
     if unsupported_msg:
         return unsupported_msg

@@ -623,7 +623,7 @@ def run(query_text: str, defs: Definments | None = None, confirm: bool = False) 
             when = "first" if anchor == "start" else "last"
             print(f"  entry_window: {when} {query.entry_window_minutes} min of each session")
         _agent_section("CONFIRM")
-        print("  Onaylıyor musun? Re-run with --confirm to execute the backtest.\n")
+        print("  Confirm? Re-run with --confirm to execute the backtest.\n")
         if not confirm:
             return
 
