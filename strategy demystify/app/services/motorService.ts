@@ -28,6 +28,7 @@ export interface BacktestResult {
   skipped_markets_no_entry_snapshot?: number;
   skipped_markets_no_exit_snapshot?: number;
   skipped_markets_missing_snapshots?: number;
+  summary?: string;
 }
 
 export interface MotorResult {
@@ -136,26 +137,28 @@ export function motorResultToChatMessage(question: string, result: MotorResult):
       : "";
   const warningNote = result.warning ? `\n\n⚠️ ${result.warning}` : "";
 
-  const avgPnlPct = normalizeNumber(bt.avg_pnl_per_trade);
-  const totalPnlPct = normalizeNumber(bt.total_pnl);
-  const maxDdPct = normalizeNumber(bt.max_drawdown);
-  const profitFactor = normalizeNumber(bt.profit_factor);
-  const winningTrades = normalizeNumber(bt.winning_trades);
-  const losingTrades = normalizeNumber(bt.losing_trades);
-  const avgHoldMinutes = normalizeNumber(bt.average_holding_minutes);
-  const avgHoldLabel =
-    avgHoldMinutes === undefined
-      ? "N/A"
-      : avgHoldMinutes < 1
-        ? `${(avgHoldMinutes * 60).toFixed(1)}s`
-        : `${avgHoldMinutes.toFixed(1)}m`;
-
-  const skippedNoSignal = normalizeNumber(bt.skipped_markets_no_signal) ?? 0;
-  const skippedNoEntry = normalizeNumber(bt.skipped_markets_no_entry_snapshot) ?? 0;
-  const skippedNoExit = normalizeNumber(bt.skipped_markets_no_exit_snapshot) ?? 0;
-  const skippedMissing = normalizeNumber(bt.skipped_markets_missing_snapshots) ?? 0;
-
-  const answer = `### Summary
+  const answer =
+    typeof bt.summary === "string" && bt.summary.trim()
+      ? bt.summary + parserModeNote + warningNote
+      : (() => {
+          const avgPnlPct = normalizeNumber(bt.avg_pnl_per_trade);
+          const totalPnlPct = normalizeNumber(bt.total_pnl);
+          const maxDdPct = normalizeNumber(bt.max_drawdown);
+          const profitFactor = normalizeNumber(bt.profit_factor);
+          const winningTrades = normalizeNumber(bt.winning_trades);
+          const losingTrades = normalizeNumber(bt.losing_trades);
+          const avgHoldMinutes = normalizeNumber(bt.average_holding_minutes);
+          const avgHoldLabel =
+            avgHoldMinutes === undefined
+              ? "N/A"
+              : avgHoldMinutes < 1
+                ? `${(avgHoldMinutes * 60).toFixed(1)}s`
+                : `${avgHoldMinutes.toFixed(1)}m`;
+          const skippedNoSignal = normalizeNumber(bt.skipped_markets_no_signal) ?? 0;
+          const skippedNoEntry = normalizeNumber(bt.skipped_markets_no_entry_snapshot) ?? 0;
+          const skippedNoExit = normalizeNumber(bt.skipped_markets_no_exit_snapshot) ?? 0;
+          const skippedMissing = normalizeNumber(bt.skipped_markets_missing_snapshots) ?? 0;
+          return `### Summary
 Executed ${bt.executed_trades} trades on ${bt.total_markets} markets.
 Wins/Losses: ${(winningTrades ?? 0).toFixed(0)} / ${(losingTrades ?? 0).toFixed(0)}
 Score: ${score.total}/100
@@ -171,12 +174,17 @@ Total PnL: ${totalPnlPct === undefined ? "N/A" : `${totalPnlPct.toFixed(2)}%`}
 
 ### Recommendation
 ${score.total >= 60 ? "✅ Strategy passed threshold." : "⚠️ Strategy below threshold, revise conditions."}${parserModeNote}${warningNote}`;
+        })();
+
+  const avgPnlPct = normalizeNumber(bt.avg_pnl_per_trade);
+  const avgPnlPerTrade = avgPnlPct !== undefined ? avgPnlPct * 100 : undefined;
 
   return {
     id: generateId(),
     question,
     answer,
     scores: score,
+    avgPnlPerTrade,
     timestamp: Date.now(),
     isExpanded: false,
   };

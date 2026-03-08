@@ -45,6 +45,8 @@ BURST_PER_SEC = 100
 REQUESTS_PER_MIN = 2000
 MAX_RETRIES = 5
 RETRY_BACKOFF_SEC = 60
+# If last snapshot is newer than this, skip API call (data considered fresh).
+FRESHNESS_SKIP_HOURS = 1
 
 DATA_DIR = os.path.join(_project_root, "data")
 SNAP_DIR = os.path.join(DATA_DIR, "market_snapshot")
@@ -90,6 +92,50 @@ def _is_snapshot_file_valid(path: str) -> bool:
         return False
 
 
+def _get_last_snapshot_time(path: str) -> datetime | None:
+    """Return the timestamp of the last snapshot in the file, or None."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        snaps = data.get("snapshots") or []
+        if not snaps:
+            return None
+        last = snaps[-1]
+        ts = last.get("time")
+        if not ts:
+            return None
+        return _parse_iso(ts)
+    except Exception:
+        return None
+
+
+def _load_market_list_from_disk() -> list[dict[str, Any]]:
+    """Load market list from disk. Only market_name.json (current window). No API. Returns [] if missing/empty."""
+    data = _safe_read_json(MARKETS_WINDOW_PATH)
+    markets = data.get("markets")
+    if isinstance(markets, list) and markets:
+        return markets
+    return []
+
+
+def _fast_path_fresh() -> bool:
+    """
+    True if we can skip API: market_name.json exists and was updated in last hour.
+    No per-market file check (that loop was causing hang on large lists / slow fs).
+    """
+    if not os.path.isfile(MARKETS_WINDOW_PATH):
+        return False
+    try:
+        mtime = os.path.getmtime(MARKETS_WINDOW_PATH)
+        if (time.time() - mtime) > 3600 * FRESHNESS_SKIP_HOURS:
+            return False
+    except OSError:
+        return False
+    data = _safe_read_json(MARKETS_WINDOW_PATH)
+    markets = data.get("markets")
+    return isinstance(markets, list) and len(markets) > 0
+
+
 def _wait_if_needed(
     requests_in_sec: int,
     requests_in_min: int,
@@ -117,12 +163,27 @@ def _wait_if_needed(
     return requests_in_sec, requests_in_min, sec_window_start, min_window_start
 
 
-def _fetch_snapshots_page(client: PolyBackTestClient, market_id: str, offset: int) -> dict[str, Any]:
+def _fetch_snapshots_page(
+    client: PolyBackTestClient,
+    market_id: str,
+    offset: int,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+) -> dict[str, Any]:
     for attempt in range(MAX_RETRIES):
         try:
-            return client.get_snapshots(market_id, limit=SNAPSHOTS_PAGE_SIZE, offset=offset)
+            return client.get_snapshots(
+                market_id,
+                limit=SNAPSHOTS_PAGE_SIZE,
+                offset=offset,
+                start_time=start_time,
+                end_time=end_time,
+            )
         except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
+            if status is not None and 400 <= status < 500 and status != 429:
+                print(f"  [skip] market={market_id} {status} (no retry)")
+                raise
             if status == 429:
                 wait = RETRY_BACKOFF_SEC * (attempt + 1)
                 print(f"  [429] market={market_id} wait {wait}s (attempt {attempt + 1}/{MAX_RETRIES})")
@@ -194,13 +255,14 @@ def _merge_market_history(existing: list[dict[str, Any]], latest: list[dict[str,
 
 def _sync_snapshots_for_markets(markets: list[dict[str, Any]]) -> tuple[int, int, int, int]:
     os.makedirs(SNAP_DIR, exist_ok=True)
+    now_utc = datetime.now(timezone.utc)
 
     market_ids = [str(m.get("market_id", "")).strip() for m in markets if m.get("market_id")]
     market_ids = [mid for mid in market_ids if mid]
 
     missing_ids: list[str] = []
     corrupted_ids: list[str] = []
-    valid_ids = 0
+    valid_incremental: list[tuple[str, str]] = []  # (mid, path)
 
     for mid in market_ids:
         path = os.path.join(SNAP_DIR, f"{mid}.json")
@@ -208,26 +270,32 @@ def _sync_snapshots_for_markets(markets: list[dict[str, Any]]) -> tuple[int, int
             missing_ids.append(mid)
             continue
         if _is_snapshot_file_valid(path):
-            valid_ids += 1
+            valid_incremental.append((mid, path))
         else:
             corrupted_ids.append(mid)
 
-    to_fetch = missing_ids + corrupted_ids
-    if not to_fetch:
-        return valid_ids, 0, 0, 0
+    to_fetch_full = missing_ids + corrupted_ids
+    valid_ids = len(valid_incremental)
 
-    print(f"Snapshot sync: valid={valid_ids}, missing={len(missing_ids)}, corrupted={len(corrupted_ids)}")
+    if not to_fetch_full and not valid_incremental:
+        return 0, 0, 0, 0
+
+    print(
+        f"Snapshot sync: valid (incremental)={len(valid_incremental)}, missing={len(missing_ids)}, corrupted={len(corrupted_ids)}"
+    )
 
     fetched_ok = 0
     fetched_fail = 0
     fetched_unusable = 0
+    appended_ok = 0
     req_sec = 0
     req_min = 0
     sec_window_start = time.monotonic()
     min_window_start = sec_window_start
 
     with PolyBackTestClient() as client:
-        for idx, mid in enumerate(to_fetch, start=1):
+        # Full fetch for missing or corrupted
+        for idx, mid in enumerate(to_fetch_full, start=1):
             try:
                 all_snapshots: list[dict[str, Any]] = []
                 offset = 0
@@ -258,14 +326,16 @@ def _sync_snapshots_for_markets(markets: list[dict[str, Any]]) -> tuple[int, int
                 if not usable:
                     fetched_unusable += 1
                     fetched_fail += 1
-                    print(f"  UNUSABLE {idx}/{len(to_fetch)} market_id={mid}: API returned empty/unusable snapshots")
+                    print(
+                        f"  UNUSABLE {idx}/{len(to_fetch_full)} market_id={mid}: API returned empty/unusable snapshots"
+                    )
                     continue
 
                 out = {
                     "metadata": {
                         "market_id": mid,
                         "slug": slug,
-                        "fetched_at": datetime.now(timezone.utc).isoformat(),
+                        "fetched_at": now_utc.isoformat(),
                         "total_snapshots": len(all_snapshots),
                     },
                     "snapshots": all_snapshots,
@@ -274,10 +344,73 @@ def _sync_snapshots_for_markets(markets: list[dict[str, Any]]) -> tuple[int, int
                 fetched_ok += 1
 
                 if idx == 1 or idx % 50 == 0:
-                    print(f"  synced {idx}/{len(to_fetch)} market_id={mid} snapshots={len(all_snapshots)}")
+                    print(f"  synced {idx}/{len(to_fetch_full)} market_id={mid} snapshots={len(all_snapshots)}")
             except Exception as e:
                 fetched_fail += 1
-                print(f"  FAILED {idx}/{len(to_fetch)} market_id={mid}: {e}")
+                print(f"  FAILED {idx}/{len(to_fetch_full)} market_id={mid}: {e}")
+
+        # Incremental append for valid files: fetch from last snapshot time to now, merge, write
+        for idx, (mid, path) in enumerate(valid_incremental, start=1):
+            try:
+                last_time = _get_last_snapshot_time(path)
+                if not last_time:
+                    continue
+                # Skip API call if data is already fresh (last snapshot within last N hours).
+                if (now_utc - last_time) < timedelta(hours=FRESHNESS_SKIP_HOURS):
+                    continue
+                start_after = last_time + timedelta(seconds=1)
+                if start_after >= now_utc:
+                    continue
+
+                new_snapshots: list[dict[str, Any]] = []
+                offset = 0
+                while True:
+                    req_sec, req_min, sec_window_start, min_window_start = _wait_if_needed(
+                        req_sec, req_min, sec_window_start, min_window_start
+                    )
+                    data = _fetch_snapshots_page(
+                        client, mid, offset, start_time=start_after, end_time=now_utc
+                    )
+                    req_sec += 1
+                    req_min += 1
+
+                    batch = data.get("snapshots", [])
+                    new_snapshots.extend(batch)
+                    if not batch or len(batch) < SNAPSHOTS_PAGE_SIZE:
+                        break
+                    offset += SNAPSHOTS_PAGE_SIZE
+
+                if not new_snapshots:
+                    continue
+
+                existing_data = _safe_read_json(path)
+                existing_snapshots = existing_data.get("snapshots") or []
+                combined = existing_snapshots + new_snapshots
+                combined.sort(key=lambda s: s.get("time") or "")
+                seen_time: set[str] = set()
+                unique: list[dict[str, Any]] = []
+                for s in combined:
+                    t = s.get("time")
+                    if t and t not in seen_time:
+                        seen_time.add(t)
+                        unique.append(s)
+
+                meta = existing_data.get("metadata") or {}
+                out = {
+                    "metadata": {
+                        "market_id": mid,
+                        "slug": meta.get("slug", mid),
+                        "fetched_at": now_utc.isoformat(),
+                        "total_snapshots": len(unique),
+                    },
+                    "snapshots": unique,
+                }
+                _write_json(path, out)
+                appended_ok += 1
+                if idx <= 3 or appended_ok % 50 == 0:
+                    print(f"  appended {appended_ok} market_id={mid} +{len(new_snapshots)} -> {len(unique)} total")
+            except Exception as e:
+                print(f"  incremental FAILED market_id={mid}: {e}")
 
     return valid_ids, fetched_ok, fetched_fail, fetched_unusable
 
@@ -288,6 +421,36 @@ def main() -> None:
 
     now = datetime.now(timezone.utc)
     print("Sync start: 15m local cache (incremental)")
+
+    # Fast path: market_name.json recent (<1h) and every market has a snapshot file → skip API (no file content read).
+    if _fast_path_fresh():
+        cached_markets = _load_market_list_from_disk()
+        n = len(cached_markets) if cached_markets else 0
+        history = _safe_read_json(MARKETS_HISTORY_PATH).get("markets", [])
+        history_times = [
+            _parse_iso(m.get("start_time", ""))
+            for m in history
+            if m.get("start_time")
+        ]
+        history_times = [t for t in history_times if t is not None]
+        if history_times:
+            coverage_start_s = min(history_times).date().isoformat()
+            coverage_end_s = max(history_times).date().isoformat()
+            coverage_days = (max(history_times).date() - min(history_times).date()).days + 1
+        else:
+            coverage_start_s = coverage_end_s = ""
+            coverage_days = 0
+        print("All data fresh, nothing to update (no API calls).")
+        print(f"- Snapshots already valid: {n}")
+        print(f"- Snapshots fetched/repaired: 0")
+        print(f"- Snapshot fetch failures: 0")
+        print(f"- Coverage start: {coverage_start_s}")
+        print(f"- Coverage end: {coverage_end_s}")
+        print(f"- Coverage days: {coverage_days}")
+        print(f"- Markets in current sync window: {n}")
+        print(f"- Snapshots complete in current sync window: {n}/{n}")
+        sys.stdout.flush()
+        return
 
     latest_30d_markets = _fetch_last_30d_markets(now)
     print(f"Markets fetched (last {DAYS_WINDOW}d): {len(latest_30d_markets)}")
@@ -334,12 +497,21 @@ def main() -> None:
         coverage_days = (coverage_end.date() - coverage_start.date()).days + 1
         coverage_start_s = coverage_start.date().isoformat()
         coverage_end_s = coverage_end.date().isoformat()
+        unique_dates = {t.date() for t in history_times}
+        days_with_data = len(unique_dates)
+        missing_days = coverage_days - days_with_data
+        print("\nSync complete.")
+        if missing_days > 0:
+            print(f"- WARNING: Span is {coverage_days}d but only {days_with_data} days have market data → {missing_days} days MISSING (gaps).")
     else:
         coverage_days = 0
         coverage_start_s = ""
         coverage_end_s = ""
+        days_with_data = 0
+        missing_days = 0
+        print("\nSync complete.")
 
-    print("\nSync complete.")
+    print(f"- NOTE: Only last {DAYS_WINDOW}d are fetched from API (DAYS_WINDOW). Older data never downloaded.")
     print(f"- History markets file: {MARKETS_HISTORY_PATH}")
     print(f"- Snapshot dir: {SNAP_DIR}")
     print(f"- Snapshots already valid: {valid_count}")
@@ -349,6 +521,8 @@ def main() -> None:
     print(f"- Coverage start: {coverage_start_s}")
     print(f"- Coverage end: {coverage_end_s}")
     print(f"- Coverage days: {coverage_days}")
+    print(f"- Days with data: {days_with_data}")
+    print(f"- Missing days (gaps in span): {missing_days}")
     print(f"- Markets in current sync window: {total_window_markets}")
     print(f"- Markets in history: {len(merged_history)}")
     print(f"- Snapshots complete in current sync window: {snapshots_complete}/{total_window_markets}")

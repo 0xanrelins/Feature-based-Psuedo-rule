@@ -29,6 +29,7 @@
 | **Entry window** | Session içinde girişe izin verilen **zaman aralığı**. Örn. “only in the last minute” = session sonuna göre; “only in the first 10 minutes” = session başlangıcına göre. | `entry_window_minutes` + `entry_window_anchor` (`end`=last N, `start`=first N). |
 | **Exit** | Ne zaman **satış** (pozisyon kapatma). | `sell_condition`: `market_end` | `immediate` | veya fiyat koşulu. |
 | **market_end** | Session sonunda kapat; resolution’a göre kazanan token 1, kaybeden 0. | `sell_condition = "market_end"`. |
+| **entry_price** | Girişteki (filling) fiyat. Çıkış koşulunda "giriş fiyatının X katı" için sağ tarafta kullanılır. | Örn. `sell_condition = "price_up >= 2 * entry_price"`. |
 | **Exit on % move** | Giriş fiyatından (veya BTC fiyatından) belirli bir **yüzde hareket** olduğunda sat. Örn. "sell after 0.2% move" = fiyat girişe göre %0,2 hareket edince çık. | `exit_on_pct_move` (sayı, örn. 0.2), `exit_pct_move_ref` (token / btc), `exit_pct_move_direction` (any / favor / against). |
 | **exit_pct_move_direction** | % hareketin **hangi yönde** olunca çıkılacağı: **any** = herhangi yönde X%, **favor** = lehimize X%, **against** = aleyhimize (ters taraf, "opposite side") X%. | `"any"` \| `"favor"` \| `"against"`. |
 
@@ -40,6 +41,7 @@
 - “In the last minute”, “session’ın son dakikasında” → **entry window** (session’a göre; veri aralığı değil).
 - “Price 0.90”, “above 0.60” → **entry condition**.
 - “Sell at close”, “market end”, “resolution” → **exit** = `market_end`.
+- “2x from filling/entry”, “giriş fiyatının 2 katında sat” → **exit** koşulu: `price_up >= 2 * entry_price` (sağ tarafta `entry_price`; sol tarafta anlık fiyat).
 - **“Sell after 0.2% move”**, “exit when price moves X%” → **exit on % move** (`exit_on_pct_move` = X; yön yoksa `any`).
 - “Moves opposite side”, “when it moves against us” → **exit on % move** + yön = **against**.
 - “In our favor”, “when it moves in favor” → **exit on % move** + yön = **favor**.

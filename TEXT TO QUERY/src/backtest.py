@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -34,6 +35,7 @@ class BacktestResult:
     trades: list[Trade]
     query: ParsedQuery
     skipped_markets: int = 0
+    markets_count: int = 0  # total markets backtest ran over (for display)
 
     @property
     def total_trades(self) -> int:
@@ -63,41 +65,40 @@ class BacktestResult:
             return 0.0
         return self.total_pnl / self.total_trades
 
+    @property
+    def avg_hold_time_minutes(self) -> float:
+        """Average hold time in minutes across all trades."""
+        if not self.trades:
+            return 0.0
+        total_minutes = 0.0
+        count = 0
+        for t in self.trades:
+            if not t.entry_time or not t.exit_time:
+                continue
+            try:
+                entry = datetime.fromisoformat(t.entry_time.replace("Z", "+00:00"))
+                exit_ = datetime.fromisoformat(t.exit_time.replace("Z", "+00:00"))
+                total_minutes += (exit_ - entry).total_seconds() / 60.0
+                count += 1
+            except (ValueError, TypeError):
+                continue
+        return total_minutes / count if count else 0.0
+
     def summary(self) -> str:
-        trigger_desc = " or ".join(
-            f"BUY {t.get('token', 'up').upper()} when {t.get('condition', '?')}"
-            for t in (self.query.buy_triggers or [])
-        ) or "any"
-        entry_win = getattr(self.query, "entry_window_minutes", None)
-        sell_line = f"               SELL at {self.query.sell_condition}"
-        if getattr(self.query, "exit_on_pct_move", None):
-            dr = getattr(self.query, "exit_pct_move_direction", "any")
-            ref = getattr(self.query, "exit_pct_move_ref", "token")
-            sell_line += f" | exit when {ref} moves {self.query.exit_on_pct_move}% ({dr})"
-        lines = [
-            "=" * 50,
-            "BACKTEST RESULTS",
-            "=" * 50,
-            f"Strategy     : {trigger_desc} (first trigger wins)",
-            sell_line,
-            f"               (trigger: {getattr(self.query, 'price_source', 'token')})",
-            f"Timeframe    : {self.query.market_type}",
-            f"Period       : {self.query.start_time:%Y-%m-%d} → {self.query.end_time:%Y-%m-%d}",
-        ]
-        if entry_win:
-            anchor = getattr(self.query, "entry_window_anchor", "end") or "end"
-            when = "first" if anchor == "start" else "last"
-            lines.insert(-1, f"Entry window : {when} {entry_win} minute(s) of each session")
+        total_pnl_pct = self.total_pnl * 100
+        avg_pnl_pct = self.avg_pnl * 100
+        hold_m = self.avg_hold_time_minutes
+        hold_str = f"{hold_m:.1f}m" if hold_m >= 1 else f"{hold_m * 60:.0f}s"
+        lines = []
+        if self.markets_count > 0:
+            lines.append(f"{self.markets_count} markette:")
         lines.extend([
-            "-" * 50,
-            f"Total Trades : {self.total_trades}",
-            f"Skipped Mkts : {self.skipped_markets}",
-            f"Wins         : {self.wins}",
-            f"Losses       : {self.losses}",
-            f"Win Rate     : {self.win_rate:.1f}%",
-            f"Total P&L    : {self.total_pnl:+.4f}",
-            f"Avg P&L      : {self.avg_pnl:+.4f}",
-            "=" * 50,
+            f"Total Trades: {self.total_trades}",
+            f"Wins / Losses: {self.wins} / {self.losses}",
+            f"Win Rate: {self.win_rate:.1f}%",
+            f"Total PnL: {total_pnl_pct:+.2f}%",
+            f"Avg PnL/Trade: {avg_pnl_pct:+.2f}%",
+            f"Avg Hold Time: {hold_str}",
         ])
         return "\n".join(lines)
 
@@ -129,7 +130,40 @@ def _enrich_snapshots_for_btc(snapshots: list[dict]) -> list[dict]:
     return out
 
 
-def _evaluate_condition(condition: str, snapshot: dict, prev_snapshot: dict | None = None) -> bool:
+def _parse_threshold_expression(rhs: str, entry_price: float | None) -> float | None:
+    """
+    Parse RHS of a comparison when it's an expression like 'filling_price * 2' or 'entry_price * 2'.
+    Returns the numeric threshold, or None if not parseable or entry_price missing.
+    """
+    s = rhs.strip()
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        pass
+    if entry_price is None:
+        return None
+    # filling_price * 2, entry_price * 0.5
+    m = re.match(r"(filling_price|entry_price)\s*\*\s*([\d.]+)$", s, re.IGNORECASE)
+    if m:
+        return entry_price * float(m.group(2))
+    # 2 * filling_price
+    m = re.match(r"([\d.]+)\s*\*\s*(filling_price|entry_price)$", s, re.IGNORECASE)
+    if m:
+        return float(m.group(1)) * entry_price
+    # filling_price / 2
+    m = re.match(r"(filling_price|entry_price)\s*/\s*([\d.]+)$", s, re.IGNORECASE)
+    if m:
+        denom = float(m.group(2))
+        return (entry_price / denom) if denom else None
+    return None
+
+
+def _evaluate_condition(
+    condition: str,
+    snapshot: dict,
+    prev_snapshot: dict | None = None,
+    entry_price: float | None = None,
+) -> bool:
     """
     Evaluate a price condition against a snapshot.
     
@@ -143,12 +177,12 @@ def _evaluate_condition(condition: str, snapshot: dict, prev_snapshot: dict | No
     # Handle compound conditions with OR
     if " or " in cond_lower:
         parts = condition.split(" or ")
-        return any(_evaluate_condition(p.strip(), snapshot, prev_snapshot) for p in parts)
+        return any(_evaluate_condition(p.strip(), snapshot, prev_snapshot, entry_price) for p in parts)
     
     # Handle compound conditions with AND
     if " and " in cond_lower:
         parts = condition.split(" and ")
-        return all(_evaluate_condition(p.strip(), snapshot, prev_snapshot) for p in parts)
+        return all(_evaluate_condition(p.strip(), snapshot, prev_snapshot, entry_price) for p in parts)
     
     # Handle crossover patterns
     if "crosses above" in cond_lower or "crosses below" in cond_lower:
@@ -199,7 +233,13 @@ def _evaluate_condition(condition: str, snapshot: dict, prev_snapshot: dict | No
             parts = condition.split(op_str)
             if len(parts) == 2:
                 field = parts[0].strip()
-                threshold = float(parts[1].strip())
+                rhs = parts[1].strip()
+                try:
+                    threshold = float(rhs)
+                except (TypeError, ValueError):
+                    threshold = _parse_threshold_expression(rhs, entry_price)
+                if threshold is None:
+                    return False
                 value = snapshot.get(field)
                 if value is None:
                     return False
@@ -445,9 +485,12 @@ def run_backtest_on_market(
                 exit_snapshot = exit_scan[0]
         elif query.sell_condition not in ("market_end", None):
             # Scan full session after entry; if condition never met, exit_snapshot stays resolution (close_snapshot)
+            entry_price_for_condition = float(found_entry.get(price_field) or 0)
             prev_exit_snap = found_entry  # Previous is entry snapshot for first iteration
             for snap in exit_scan:
-                if _evaluate_condition(query.sell_condition, snap, prev_exit_snap):
+                if _evaluate_condition(
+                    query.sell_condition, snap, prev_exit_snap, entry_price=entry_price_for_condition
+                ):
                     exit_snapshot = snap
                     break
                 prev_exit_snap = snap

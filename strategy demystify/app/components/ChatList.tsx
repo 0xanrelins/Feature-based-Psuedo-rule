@@ -1,7 +1,6 @@
 "use client";
 
-import { ChatMessage, formatTimeAgo, getScoreRating } from "../types";
-import ScoreTable from "./ScoreTable";
+import { ChatMessage, formatTimeAgo, parseAvgPnlFromAnswer } from "../types";
 
 interface ChatListProps {
   chats: ChatMessage[];
@@ -18,8 +17,16 @@ interface ChatListItemProps {
   rank: number;
 }
 
+function getAvgPnlDisplay(chat: ChatMessage): string {
+  const val = chat.avgPnlPerTrade ?? parseAvgPnlFromAnswer(chat.answer);
+  return val !== undefined ? `${val > 0 ? "+" : ""}${val.toFixed(2)}%` : "—";
+}
+
+function getAvgPnlForSort(chat: ChatMessage): number {
+  return chat.avgPnlPerTrade ?? parseAvgPnlFromAnswer(chat.answer) ?? -Infinity;
+}
+
 function ChatListItem({ chat, onToggleExpand, onSelectChat, isSelected, rank }: ChatListItemProps) {
-  const rating = getScoreRating(chat.scores.total);
   const timeAgo = formatTimeAgo(chat.timestamp);
   
   // Truncate question for preview
@@ -63,10 +70,10 @@ function ChatListItem({ chat, onToggleExpand, onSelectChat, isSelected, rank }: 
             </div>
           </div>
 
-          {/* Total Score + Expand Button */}
+          {/* Avg PnL/Trade + Expand Button */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <div className={`text-base font-mono font-bold ${rating.color}`}>
-              {chat.scores.total}
+            <div className="text-base font-mono font-bold text-text-primary">
+              {getAvgPnlDisplay(chat)}
             </div>
             <button
               onClick={handleExpandClick}
@@ -98,9 +105,11 @@ function ChatListItem({ chat, onToggleExpand, onSelectChat, isSelected, rank }: 
             <p className="text-[10px] font-mono text-text-secondary mt-0.5 leading-relaxed">{chat.question}</p>
           </div>
 
-          {/* Compact Score Table */}
-          <div className="mb-2">
-            <ScoreTable scores={chat.scores} compact />
+          {/* Details (Total Trades, Wins/Losses, Win Rate, Total PnL, Avg PnL/Trade, Avg Hold Time) */}
+          <div className="mb-2 bg-bg-secondary/30 rounded-lg border border-border/50 p-2.5">
+            <div className="text-[10px] text-text-secondary font-mono whitespace-pre-wrap leading-relaxed">
+              {chat.answer.split("\n").slice(0, 6).join("\n")}
+            </div>
           </div>
 
           {/* View Full Button */}
@@ -133,7 +142,7 @@ export default function ChatList({
             Rankings
           </span>
           <span className="text-[9px] text-text-muted font-mono">
-            (by Score)
+            (by Avg PnL/Trade)
           </span>
         </div>
         <span className="text-[10px] text-text-muted font-mono">
@@ -145,7 +154,9 @@ export default function ChatList({
       <div className="flex-1 overflow-y-auto min-h-0">
         {hasChats ? (
           <div>
-            {chats.map((chat, index) => (
+            {[...chats]
+              .sort((a, b) => getAvgPnlForSort(b) - getAvgPnlForSort(a))
+              .map((chat, index) => (
               <ChatListItem
                 key={chat.id}
                 chat={chat}
@@ -174,15 +185,10 @@ export default function ChatList({
         )}
       </div>
 
-      {/* Footer with Legend - Compact */}
+      {/* Footer */}
       {hasChats && (
-        <div className="px-3 py-1.5 border-t border-border flex items-center justify-between text-[9px] font-mono flex-none">
-          <div className="flex items-center gap-2">
-            <span className="text-accent-green">●70+</span>
-            <span className="text-accent-yellow">●50</span>
-            <span className="text-accent-red">●&lt;50</span>
-          </div>
-          <span className="text-text-muted/70">High→Low</span>
+        <div className="px-3 py-1.5 border-t border-border text-[9px] font-mono flex-none text-text-muted/70">
+          High→Low (Avg PnL/Trade)
         </div>
       )}
     </div>

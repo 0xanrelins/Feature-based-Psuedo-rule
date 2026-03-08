@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ChatMessage, generateId } from "./types";
+import { ChatMessage, generateId, parseAvgPnlFromAnswer } from "./types";
 import {
   motorParse,
   motorBacktest,
@@ -248,7 +248,9 @@ export default function StrategyDashboard() {
       const newChat = motorResultToChatMessage(pendingQuestion, result);
       setChatHistory(prev => {
         const updated = [...prev, newChat];
-        return updated.sort((a, b) => b.scores.total - a.scores.total);
+        const sortKey = (c: ChatMessage) =>
+          c.avgPnlPerTrade ?? parseAvgPnlFromAnswer(c.answer) ?? -Infinity;
+        return updated.sort((a, b) => sortKey(b) - sortKey(a));
       });
       setCurrentChat(newChat);
       setPendingApproval(null);

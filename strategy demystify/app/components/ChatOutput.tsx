@@ -1,7 +1,6 @@
 "use client";
 
-import { ChatMessage, getScoreRating } from "../types";
-import ScoreTable from "./ScoreTable";
+import { ChatMessage } from "../types";
 
 interface ChatOutputProps {
   chat: ChatMessage | null;
@@ -75,9 +74,7 @@ export default function ChatOutput({
     );
   }
 
-  const { question, answer, scores, timestamp } = chat;
-  const rating = getScoreRating(scores.total);
-  const showScoring = !pendingApproval && !hasClarificationOptions;
+  const { question, answer, timestamp } = chat;
 
   const lines = answer.split('\n');
   const summaryStart = lines.findIndex(l => l.includes('### Summary'));
@@ -112,23 +109,6 @@ export default function ChatOutput({
           <span className="text-[10px] text-text-muted font-mono uppercase">Question</span>
           <p className="text-text-primary font-mono text-sm mt-1 leading-relaxed">{question}</p>
         </div>
-
-        {showScoring && (
-          <>
-            <div className="mb-3 flex items-center gap-3">
-              <div className="text-2xl font-bold font-mono">
-                <span className={rating.color}>{scores.total}</span>
-                <span className="text-text-muted text-base">/100</span>
-              </div>
-              <div className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-bg-secondary ${rating.color}`}>
-                {rating.icon} {rating.label}
-              </div>
-            </div>
-            <div className="mb-3">
-              <ScoreTable scores={scores} />
-            </div>
-          </>
-        )}
 
         {summary && (
           <div className="mb-3">
@@ -191,19 +171,6 @@ export default function ChatOutput({
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {showScoring && (
-          <div className={`p-2.5 rounded-lg border ${scores.total >= 60 ? 'border-accent-green/30 bg-accent-green/5' : 'border-accent-yellow/30 bg-accent-yellow/5'}`}>
-            <p className={`text-xs font-mono font-semibold ${scores.total >= 60 ? 'text-accent-green' : 'text-accent-yellow'}`}>
-              {scores.total >= 60 ? '✓ APPROVED' : '⚠ CAUTION'}
-              <span className="text-text-secondary font-normal ml-2">
-                {scores.total >= 60
-                  ? 'Suitable for implementation with specified risk controls.'
-                  : 'Requires further optimization before live trading.'}
-              </span>
-            </p>
           </div>
         )}
       </div>

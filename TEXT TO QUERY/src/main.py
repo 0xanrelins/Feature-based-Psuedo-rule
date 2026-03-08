@@ -415,7 +415,7 @@ def run_backtest(client: PolyBackTestClient | None, query: ParsedQuery, *, silen
             if trade:
                 trades.append(trade)
 
-    result = BacktestResult(trades=trades, query=query, skipped_markets=skipped_markets)
+    result = BacktestResult(trades=trades, query=query, skipped_markets=skipped_markets, markets_count=len(filtered))
     return result
 
 
@@ -550,6 +550,7 @@ def run_json(query_text: str, defs: Definments | None = None, *, dry_run: bool =
             "win_rate": round(result.win_rate, 1),
             "total_pnl": round(result.total_pnl, 4),
             "avg_pnl": round(result.avg_pnl, 4),
+            "avg_hold_time_minutes": round(result.avg_hold_time_minutes, 1),
             "summary": result.summary(),
         },
         "trades": [_trade_to_dict(t) for t in result.trades],
@@ -636,21 +637,6 @@ def run(query_text: str, defs: Definments | None = None, confirm: bool = False) 
                     result = run_backtest(client, query)
             _agent_section("BACKTEST_RESULT")
             print(result.summary())
-            if result.trades:
-                def _time_mm_ss(iso_str: str) -> str:
-                    if not iso_str:
-                        return "--:--"
-                    try:
-                        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-                        return dt.strftime("%M:%S")
-                    except Exception:
-                        return "--:--"
-                print("\n  Trade details:")
-                print(f"  {'Market':<40} {'Entry':>7} {'Exit':>7} {'P&L':>8}  {'Entry':>6} {'Exit':>6}")
-                print(f"  {'':40} {'price':>7} {'price':>7} {'':>8}  {'(mm:ss)':>6} {'(mm:ss)':>6}")
-                print("  " + "-" * 76)
-                for t in result.trades:
-                    print(f"  {t.market_slug[:38]:<40} {t.entry_price:>7.4f} {t.exit_price:>7.4f} {t.pnl:>+8.4f}  {_time_mm_ss(t.entry_time):>6} {_time_mm_ss(t.exit_time):>6}")
             print()
         elif flow == "snapshot_at_flow":
             with PolyBackTestClient() as client:

@@ -14,6 +14,7 @@ export interface ChatMessage {
   question: string;              // user input
   answer: string;                // AI response
   scores: ScoreBreakdown;        // scoring framework
+  avgPnlPerTrade?: number;      // Avg PnL/Trade % (e.g. -1.34) for ranking
   timestamp: number;             // created at (Date.now())
   isExpanded: boolean;          // UI state for list view
 }
@@ -42,6 +43,14 @@ export function getScoreRating(total: number): ScoreRatingConfig {
   if (total >= 50) return SCORE_RATINGS.moderate;
   if (total >= 30) return SCORE_RATINGS.weak;
   return SCORE_RATINGS.poor;
+}
+
+/** Parse Avg PnL/Trade % from answer string (e.g. "Avg PnL/Trade: -1.34%") */
+export function parseAvgPnlFromAnswer(answer: string): number | undefined {
+  const m = answer.match(/Avg PnL\/Trade:\s*([-\d.]+)%?/);
+  if (!m) return undefined;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 export function formatTimeAgo(timestamp: number): string {

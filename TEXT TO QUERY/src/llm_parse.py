@@ -14,6 +14,7 @@ OpenRouter takes precedence if both are set.
 """
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -40,6 +41,46 @@ _AGENT_ROLE = """You are a backtest and trading strategies analyst. You understa
 CRITICAL: The system AUTOMATICALLY calculates technical indicators (RSI, EMA, MACD, Bollinger Bands, Stochastic RSI) from the snapshot price series. When user mentions "RSI", "EMA", "MACD", etc., you can use them directly in conditions (e.g., "rsi > 30", "ema_12 > price_up"). The system computes these on-the-fly from price_up series by default.
 
 The Glossary and Mapping below are references and examples—not an exhaustive list. Use them together with the terminology library and your own domain knowledge. If you understand what the user means, map it confidently; do not second-guess or pick a safer default just because the exact phrase is not in the mapping. Only set clarification_needed when you genuinely cannot resolve after using all sources and your knowledge."""
+
+# JSON schema for structured output (OpenAI). Used only when OPENAI is used (not OpenRouter).
+_LLM_RESPONSE_SCHEMA = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "backtest_slots",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["backtest", "list_markets", "snapshot_at"]},
+                "market_type": {"type": "string", "enum": ["5m", "15m", "1hr", "4hr", "24hr"]},
+                "price_source": {"type": "string", "enum": ["token", "btc_price"]},
+                "start_time": {"type": "string"},
+                "end_time": {"type": "string"},
+                "buy_triggers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "condition": {"type": "string"},
+                            "token": {"type": "string", "enum": ["up", "down"]},
+                        },
+                        "required": ["condition", "token"],
+                        "additionalProperties": False,
+                    },
+                },
+                "sell_condition": {"type": "string"},
+                "entry_window_minutes": {"type": "integer"},
+                "entry_window_anchor": {"type": "string", "enum": ["start", "end"]},
+                "exit_on_pct_move": {"type": "number"},
+                "exit_pct_move_ref": {"type": "string", "enum": ["token", "btc"]},
+                "exit_pct_move_direction": {"type": "string", "enum": ["any", "favor", "against"]},
+                "clarification_needed": {"type": "string"},
+            },
+            "required": ["action", "buy_triggers"],
+            "additionalProperties": False,
+        },
+    },
+}
 
 
 def _load_doc_path(relative_path: str) -> str:
@@ -79,16 +120,37 @@ def _get_llm_client():
         from openai import OpenAI
     except ImportError:
         return None, ""
+
+    def _timeout_seconds() -> float:
+        raw = (
+            os.environ.get("MOTOR_LLM_TIMEOUT_SECONDS")
+            or os.environ.get("LLM_PARSE_TIMEOUT_SECONDS")
+            or ""
+        ).strip()
+        try:
+            v = float(raw)
+            if v > 0:
+                return v
+        except ValueError:
+            pass
+        return 20.0
+
+    timeout_s = _timeout_seconds()
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if openrouter_key:
         return (
-            OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key),
+            OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=openrouter_key,
+                timeout=timeout_s,
+                max_retries=0,
+            ),
             os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
         )
     openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if openai_key:
         return (
-            OpenAI(api_key=openai_key),
+            OpenAI(api_key=openai_key, timeout=timeout_s, max_retries=0),
             os.environ.get("OPENAI_LLM_MODEL", "gpt-4o-mini"),
         )
     return None, ""
@@ -181,9 +243,20 @@ Output valid JSON only, no markdown.
 {schema}
 
 ---
+## Examples (follow these patterns)
+---
+User: "if btc price dips 2% buy up in the first 3 minutes"
+→ Entry is about BTC dipping 2%: use btc_pct_from_start <= -2 (not price_up). Entry window: first 3 minutes.
+
+User: "when up token 2x from filling price sell"
+→ Exit is "2x from entry": use sell_condition = "price_up >= 2 * entry_price". Use entry_price on the RHS, never price_up on both sides.
+
+---
 ## Instructions
 ---
-Glossary and Mapping are references; use them plus the terminology library and your trading/backtest knowledge. Interpret user phrases confidently (e.g. "in profit direction" → exit_pct_move_direction: favor). Use definments for defaults. action: backtest when user describes a buy/sell strategy. Only set clarification_needed when genuinely ambiguous.{extra_block}"""
+Glossary and Mapping are references; use them plus the terminology library and your trading/backtest knowledge. Interpret user phrases confidently (e.g. "in profit direction" → exit_pct_move_direction: favor). Use definments for defaults. action: backtest when user describes a buy/sell strategy. Only set clarification_needed when genuinely ambiguous.
+
+Condition grammar: For BTC % use btc_pct_from_start (e.g. dips 2% → btc_pct_from_start <= -2). For token price use price_up or price_down. For "X from entry/filling" use entry_price on the RHS only (e.g. price_up >= 2 * entry_price). Never use the same field on both sides (e.g. price_up >= 2 * price_up is invalid).{extra_block}"""
 
 
 def _fallback_system_prompt(include_extra_sources: bool = False) -> str:
@@ -198,7 +271,7 @@ Output valid JSON only, no markdown. Schema:
   "start_time": "YYYY-MM-DD",
   "end_time": "YYYY-MM-DD",
   "buy_triggers": [{"condition": "string", "token": "up"|"down"}, ...],
-  "sell_condition": "market_end" | "immediate" | or condition string, or null,
+  "sell_condition": "market_end" | "immediate" | or condition string (e.g. price_up >= 2 * entry_price for 2x from entry), or null,
   "entry_window_minutes": number or null,
   "entry_window_anchor": "start" | "end",
   "exit_on_pct_move": number or null,
@@ -213,8 +286,9 @@ Mapping (user phrase → domain field; use definments when user does not specify
 3) Token: "up"/"down", "buy up"/"buy down". Default: definments.token.
 4) Entry (buy_triggers): "above 0.XX" → price_up > 0.XX; "below 0.XX" → price_up < 0.XX; "X cent" → price_up <= 0.0X. Follow BTC → btc_pct conditions; Opposite BTC → tokens swapped.
 5) Entry window: "in the last minute" → entry_window_minutes = 1 and entry_window_anchor="end". "in the first N minutes" → entry_window_minutes = N and entry_window_anchor="start".
-6) Exit: "at close"/"market end" → market_end; "sell immediately" → immediate. Default: market_end.
+6) Exit: "at close"/"market end" → market_end; "sell immediately" → immediate. "2x from filling/entry" or "giriş fiyatının 2 katı" → sell_condition = "price_up >= 2 * entry_price" (use entry_price on RHS, not price_up). Default: market_end.
 7) Exit on % move: "sell when it moves X%" → exit_on_pct_move = X; "in our favor"/"when it moves in favor" → exit_pct_move_direction = "favor"; "against us"/"opposite side" → "against". Default direction "any".
+Condition grammar: BTC % → btc_pct_from_start (e.g. dips 2% → btc_pct_from_start <= -2). Token price → price_up/price_down. "X from entry" → entry_price on RHS only. Never same field on both sides (e.g. price_up >= 2 * price_up is invalid).
 Only set clarification_needed when intent is truly ambiguous."""
     if include_extra_sources:
         extra = _load_extra_sources()
@@ -257,17 +331,22 @@ def parse_with_llm(user_text: str, defs: Definments) -> dict[str, Any] | None:
     )
     user_msg = f"{context}\n\nUser question: {user_text}"
 
+    use_structured_output = not os.environ.get("OPENROUTER_API_KEY", "").strip()
+
     def _call_llm(include_extra_sources: bool) -> dict[str, Any] | None:
         system_content = _build_system_prompt(include_extra_sources=include_extra_sources)
+        kwargs = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": user_msg},
+            ],
+            "temperature": 0.1,
+        }
+        if use_structured_output:
+            kwargs["response_format"] = _LLM_RESPONSE_SCHEMA
         try:
-            resp = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_content},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=0.1,
-            )
+            resp = client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or "{}"
             text = text.strip()
             if text.startswith("```"):
@@ -397,6 +476,18 @@ _UNSUPPORTED_INDICATORS = [
 ]
 
 
+def _condition_has_same_field_on_both_sides(condition: str) -> bool:
+    """True if condition uses same field on both sides (e.g. price_up <= 0.98 * price_up). Invalid."""
+    c = condition.strip()
+    for field in ("price_up", "price_down"):
+        if field not in c:
+            continue
+        # RHS has * field or / field → same field on both sides
+        if re.search(r"[\*\/]\s*" + re.escape(field) + r"\b", c):
+            return True
+    return False
+
+
 def _validate_conditions(slots: dict[str, Any]) -> str | None:
     """Check for unsupported indicators in conditions. Returns clarification message or None."""
     conditions = []
@@ -409,6 +500,13 @@ def _validate_conditions(slots: dict[str, Any]) -> str | None:
     sell = slots.get("sell_condition")
     if sell and isinstance(sell, str) and sell not in ("market_end", "immediate"):
         conditions.append(sell)
+    
+    for cond in conditions:
+        if _condition_has_same_field_on_both_sides(cond):
+            return (
+                "Koşulda aynı alan iki tarafta kullanılmış (örn. price_up >= 2 * price_up). "
+                "BTC yüzdesi için btc_pct_from_start, giriş fiyatının katı için sağ tarafta entry_price kullanın."
+            )
     
     cond_text = " ".join(conditions).lower()
     
